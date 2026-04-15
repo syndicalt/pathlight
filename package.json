@@ -15,5 +15,8 @@
   "devDependencies": {
     "turbo": "^2"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@pathlight/sdk": "^0.1.0"
+  }
 }
