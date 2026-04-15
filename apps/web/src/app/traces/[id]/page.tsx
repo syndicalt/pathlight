@@ -161,6 +161,29 @@ function SpanInspector({ span, onClose }: { span: Span; onClose: () => void }) {
           )}
         </div>
 
+        {/* Source location */}
+        {(() => {
+          const meta = parseJson(span.metadata) as Record<string, unknown> | null;
+          const source = meta?._source as { file?: string; line?: number; func?: string } | undefined;
+          if (!source?.file) return null;
+          return (
+            <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-3">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1.5">Source</p>
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                </svg>
+                <code className="text-xs text-blue-400 font-mono">
+                  {source.file}:{source.line}
+                </code>
+                {source.func && source.func !== "(anonymous)" && (
+                  <span className="text-xs text-zinc-500">in <span className="text-zinc-400">{source.func}</span></span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {span.error && (
           <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-3">
             <p className="text-[10px] text-red-400 uppercase tracking-widest mb-1">Error</p>

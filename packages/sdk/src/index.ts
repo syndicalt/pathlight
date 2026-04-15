@@ -15,6 +15,33 @@
  *   trace.end({ output: finalResult });
  */
 
+// Capture the caller's source location from the stack trace
+function captureSource(): { file: string; line: number; column: number; func: string } | null {
+  const err = new Error();
+  const stack = err.stack?.split("\n");
+  if (!stack) return null;
+
+  // Walk up the stack to find the first frame outside the SDK
+  for (let i = 1; i < stack.length; i++) {
+    const frame = stack[i].trim();
+    // Skip frames from this SDK file
+    if (frame.includes("/sdk/") || frame.includes("@tracelens/sdk")) continue;
+    if (frame.includes("node:") || frame.includes("node_modules")) continue;
+
+    // Parse "at functionName (file:line:col)" or "at file:line:col"
+    const match = frame.match(/at\s+(?:(.+?)\s+\()?((?:file:\/\/)?(.+?)):(\d+):(\d+)\)?/);
+    if (match) {
+      return {
+        func: match[1] || "(anonymous)",
+        file: match[3] || match[2],
+        line: parseInt(match[4]),
+        column: parseInt(match[5]),
+      };
+    }
+  }
+  return null;
+}
+
 interface TraceLensConfig {
   baseUrl: string;
   projectId?: string;
@@ -159,6 +186,8 @@ export class Span {
   private _startTime = Date.now();
   private _initPromise: Promise<void>;
 
+  private _source: ReturnType<typeof captureSource>;
+
   constructor(
     client: TraceLens,
     trace: Trace,
@@ -176,17 +205,27 @@ export class Span {
   ) {
     this.client = client;
     this.trace = trace;
+    // Capture source location at the call site (must happen in constructor, not async)
+    this._source = captureSource();
 
     this._initPromise = this._init(name, type, options);
   }
 
   private async _init(name: string, type: string, options?: Record<string, unknown>) {
     const traceId = await this.trace.id;
+
+    // Merge source location into metadata
+    const existingMeta = options?.metadata ? (typeof options.metadata === "object" ? options.metadata : {}) : {};
+    const metadata = this._source
+      ? { ...existingMeta as Record<string, unknown>, _source: this._source }
+      : existingMeta;
+
     const result = await this.client._createSpan({
       traceId,
       name,
       type,
       ...options,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
     this._id = result.id;
   }
