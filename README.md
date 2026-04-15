@@ -4,6 +4,12 @@ Chrome DevTools for AI agents. Visual debugging, execution traces, and observabi
 
 When your AI agent makes a bad decision at step 7 of a 12-step workflow, Agentrace shows you exactly what happened — what went in, what came out, how long it took, and where in your code it was called. No more debugging agents with `console.log`.
 
+![Trace List](public/trace_list.png)
+
+![Waterfall Timeline](public/trace_detail.png)
+
+![Span Inspector](public/execution_detail.png)
+
 ## Features
 
 - **Waterfall Timeline** — See every step of your agent's execution as a visual timeline with proportional duration bars. LLM calls, tool invocations, retrieval steps — all in one view.
@@ -92,9 +98,13 @@ That's it. Open http://localhost:3100 and you'll see the full execution timeline
 
 All agent runs at a glance. Status indicators (running/completed/failed), duration, token count, and tags. Traces with issues are flagged with an amber warning badge.
 
+![Trace List](public/trace_list.png)
+
 ### Waterfall Timeline
 
 Every span visualized as a proportional bar showing when it started and how long it took relative to the total trace. Sequential steps cascade down like a waterfall. Issue spans are highlighted in amber.
+
+![Waterfall Timeline](public/trace_detail.png)
 
 ### Span Inspector
 
@@ -107,6 +117,8 @@ Click any span to open the slide-in panel showing:
 - **Input/Output** — formatted JSON
 - **Tool arguments and results**
 - **Errors**
+
+![Span Inspector](public/execution_detail.png)
 
 ## Architecture
 
