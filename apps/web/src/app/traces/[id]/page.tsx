@@ -313,16 +313,16 @@ export default function TraceDetailPage() {
                   </div>
 
                   {/* Waterfall bar */}
-                  <div className="flex-1 relative h-6">
-                    <div className="absolute inset-0 bg-zinc-800/30 rounded" />
+                  <div className="flex-1 relative h-5 bg-zinc-800/40 rounded overflow-hidden">
                     <div
                       className={`absolute top-0 h-full rounded ${
-                        span.status === "failed" ? "bg-red-600/60" : hasIssue ? "bg-amber-600/40" : style.bg.replace("/30", "/60")
+                        span.status === "failed" ? "bg-red-500" : hasIssue ? "bg-amber-500" : span.type === "llm" ? "bg-blue-500" : span.type === "tool" ? "bg-emerald-500" : span.type === "retrieval" ? "bg-violet-500" : "bg-zinc-500"
                       }`}
                       style={{
                         left: `${offsetPct}%`,
                         width: `${widthPct}%`,
                         minWidth: "4px",
+                        opacity: 0.7,
                       }}
                     />
                   </div>
