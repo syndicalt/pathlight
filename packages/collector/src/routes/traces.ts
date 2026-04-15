@@ -35,7 +35,40 @@ export function createTraceRoutes(db: Db) {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .get();
 
-    return c.json({ traces: rows, total: total?.count || 0, limit, offset });
+    // Enrich with span-level issue detection
+    const traceIds = rows.map((r) => r.id);
+    const issueMap = new Map<string, string[]>();
+
+    if (traceIds.length > 0) {
+      const allSpans = await db
+        .select({ traceId: spans.traceId, output: spans.output, error: spans.error, status: spans.status })
+        .from(spans)
+        .where(sql`${spans.traceId} IN (${sql.join(traceIds.map((id) => sql`${id}`), sql`, `)})`)
+        .all();
+
+      const ISSUE_PATTERNS = /\bfail\b|failed|failure|error|exception|timeout|timed out|invalid|denied|refused|rejected|incomplete|truncat/i;
+
+      for (const span of allSpans) {
+        const issues: string[] = [];
+        if (span.status === "failed") issues.push("span_failed");
+        if (span.error) issues.push("has_error");
+        if (span.output && ISSUE_PATTERNS.test(span.output)) issues.push("issue_in_output");
+
+        if (issues.length > 0) {
+          const existing = issueMap.get(span.traceId) || [];
+          existing.push(...issues);
+          issueMap.set(span.traceId, existing);
+        }
+      }
+    }
+
+    const enriched = rows.map((r) => ({
+      ...r,
+      issues: [...new Set(issueMap.get(r.id) || [])],
+      hasIssues: issueMap.has(r.id) || r.status === "failed" || !!r.error,
+    }));
+
+    return c.json({ traces: enriched, total: total?.count || 0, limit, offset });
   });
 
   // Get single trace with all spans and events
