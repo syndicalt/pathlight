@@ -70,6 +70,16 @@ const STATUS_DOT: Record<string, string> = {
   failed: "bg-red-500",
 };
 
+const ISSUE_PATTERN = /\bfail\b|failed|failure|error|exception|timeout|timed out|invalid|denied|refused|rejected|incomplete|truncat/i;
+
+function spanHasIssues(span: Span): boolean {
+  if (span.status === "failed") return true;
+  if (span.error) return true;
+  if (span.output && ISSUE_PATTERN.test(span.output)) return true;
+  if (span.toolResult && ISSUE_PATTERN.test(span.toolResult)) return true;
+  return false;
+}
+
 function parseJson(str: string | null): unknown {
   if (!str) return null;
   try { return JSON.parse(str); } catch { return str; }
@@ -279,21 +289,27 @@ export default function TraceDetailPage() {
               const widthPct = Math.max((spanDuration / totalMs) * 100, 0.5);
               const style = TYPE_STYLES[span.type] || TYPE_STYLES.custom;
               const isSelected = selectedSpan?.id === span.id;
+              const hasIssue = spanHasIssues(span);
 
               return (
                 <div
                   key={span.id}
                   className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${
-                    isSelected ? "bg-zinc-800/60" : "hover:bg-zinc-800/30"
+                    isSelected ? "bg-zinc-800/60" : hasIssue ? "bg-amber-950/20 hover:bg-amber-950/30" : "hover:bg-zinc-800/30"
                   }`}
                   onClick={() => setSelectedSpan(isSelected ? null : span)}
                 >
                   {/* Label */}
                   <div className="w-48 shrink-0 flex items-center gap-2 min-w-0">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
+                    {hasIssue && (
+                      <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    )}
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border shrink-0 ${hasIssue ? "bg-amber-900/30 text-amber-300 border-amber-800/50" : `${style.bg} ${style.text} ${style.border}`}`}>
                       {span.type}
                     </span>
-                    <span className="text-xs text-zinc-300 truncate">{span.name}</span>
+                    <span className={`text-xs truncate ${hasIssue ? "text-amber-200" : "text-zinc-300"}`}>{span.name}</span>
                   </div>
 
                   {/* Waterfall bar */}
@@ -301,7 +317,7 @@ export default function TraceDetailPage() {
                     <div className="absolute inset-0 bg-zinc-800/30 rounded" />
                     <div
                       className={`absolute top-0 h-full rounded ${
-                        span.status === "failed" ? "bg-red-600/60" : style.bg.replace("/30", "/60")
+                        span.status === "failed" ? "bg-red-600/60" : hasIssue ? "bg-amber-600/40" : style.bg.replace("/30", "/60")
                       }`}
                       style={{
                         left: `${offsetPct}%`,
