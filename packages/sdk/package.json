@@ -1,7 +1,7 @@
 {
   "name": "@agentrace/sdk",
   "version": "0.1.0",
-  "description": "SDK for Agentrace — Chrome DevTools for AI agents",
+  "description": "SDK for Agentrace — visual debugging and observability for AI agents",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

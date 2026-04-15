@@ -1,6 +1,6 @@
 # @agentrace/sdk
 
-TypeScript SDK for [Agentrace](https://github.com/syndicalt/agentrace) — Chrome DevTools for AI agents.
+TypeScript SDK for [Agentrace](https://github.com/syndicalt/agentrace) — visual debugging and observability for AI agents.
 
 Instrument your AI agent with a few lines of code to capture full execution traces with visual debugging, waterfall timelines, and automatic source mapping.
 

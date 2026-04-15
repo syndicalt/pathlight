@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agentrace",
-  description: "Chrome DevTools for AI agents",
+  description: "Visual debugging and observability for AI agents",
 };
 
 function Sidebar() {

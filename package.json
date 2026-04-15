@@ -2,7 +2,7 @@
   "name": "agentrace",
   "version": "0.1.0",
   "private": true,
-  "description": "Chrome DevTools for AI agents — visual debugging, execution traces, and observability",
+  "description": "Visual debugging, execution traces, and observability for AI agents",
   "workspaces": [
     "packages/*",
     "apps/*"

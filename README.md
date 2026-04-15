@@ -1,6 +1,6 @@
 # Agentrace
 
-Chrome DevTools for AI agents. Visual debugging, execution traces, and observability for agentic AI systems.
+Visual debugging, execution traces, and observability for AI agents.
 
 When your AI agent makes a bad decision at step 7 of a 12-step workflow, Agentrace shows you exactly what happened — what went in, what came out, how long it took, and where in your code it was called. No more debugging agents with `console.log`.
 

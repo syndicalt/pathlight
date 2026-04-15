@@ -1,6 +1,6 @@
 # Agentrace
 
-Chrome DevTools for AI agents. Visual debugging, execution traces, and observability for agentic AI systems.
+Visual debugging, execution traces, and observability for AI agents.
 
 ## Architecture
 
