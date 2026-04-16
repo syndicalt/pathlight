@@ -8,7 +8,8 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:retire": "tsx src/retire.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
 }

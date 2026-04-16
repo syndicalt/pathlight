@@ -22,6 +22,8 @@ npm run dev -w apps/web             # Web UI only (port 3100)
 npm run db:generate -w packages/db   # Generate Drizzle migrations
 npm run db:migrate -w packages/db    # Run migrations
 npm run db:studio -w packages/db     # Open Drizzle Studio
+npm run db:retire -w packages/db     # Archive database (rename to .archived-<timestamp>.db)
+npm run db:retire -w packages/db -- --delete  # Permanently delete database
 ```
 
 ## Key Data Model

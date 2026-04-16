@@ -27,6 +27,12 @@ npm run db:migrate -w packages/db
 
 # Start everything (collector + dashboard)
 npx turbo dev
+
+# Archive database to start fresh (renames to .archived-<timestamp>.db)
+npm run db:retire -w packages/db
+
+# Or permanently delete it
+npm run db:retire -w packages/db -- --delete
 ```
 
 - **Collector**: http://localhost:4100 (receives trace data from your agent)
