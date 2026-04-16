@@ -12,10 +12,9 @@ interface RouterContext {
 export async function createRouter(ctx: RouterContext) {
   const app = new Hono();
 
-  // CORS for dashboard
+  // CORS — allow all origins (dev tool)
   app.use("/*", cors({
-    origin: process.env.DASHBOARD_URL || "http://localhost:3100",
-    credentials: true,
+    origin: "*",
     exposeHeaders: ["X-Total-Count"],
   }));
 
