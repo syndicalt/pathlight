@@ -20,6 +20,7 @@ export const traces = sqliteTable("traces", {
     .notNull()
     .$defaultFn(() => new Date()),
   completedAt: integer("completed_at", { mode: "timestamp" }),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
 });
 
 // A span represents a single step within a trace (LLM call, tool use, decision, etc.)

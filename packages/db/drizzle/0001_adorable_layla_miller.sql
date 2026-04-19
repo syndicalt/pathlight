@@ -1,0 +1,1 @@
+ALTER TABLE `traces` ADD `reviewed_at` integer;
