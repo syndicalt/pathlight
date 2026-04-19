@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchApi } from "../../../lib/api";
+import { fetchApi, patchApi } from "../../../lib/api";
 import { formatDuration, formatTokens } from "../../../lib/format";
 
 interface Trace {
@@ -20,6 +20,7 @@ interface Trace {
   tags: string | null;
   createdAt: string;
   completedAt: string | null;
+  reviewedAt: string | null;
 }
 
 interface Span {
@@ -212,6 +213,12 @@ export default function TraceDetailPage() {
         setTrace(data.trace);
         setSpans(data.spans);
         setEvents(data.events);
+
+        if (data.trace && !data.trace.reviewedAt) {
+          const reviewedAt = new Date().toISOString();
+          setTrace((prev) => (prev ? { ...prev, reviewedAt } : prev));
+          patchApi(`/v1/traces/${id}`, { reviewedAt }).catch(console.error);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
