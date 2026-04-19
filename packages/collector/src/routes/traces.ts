@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { Db } from "@pathlight/db";
 import { traces, spans, events, scores } from "@pathlight/db";
 import { eq, desc, sql, and, gte, lte, like } from "@pathlight/db";
 import { nanoid } from "nanoid";
+import { traceEvents, emitTraceEvent, type TraceEvent } from "../events.js";
 
 export function createTraceRoutes(db: Db) {
   const app = new Hono();
@@ -71,6 +73,34 @@ export function createTraceRoutes(db: Db) {
     return c.json({ traces: enriched, total: total?.count || 0, limit, offset });
   });
 
+  // SSE stream of trace.created / trace.updated events
+  app.get("/stream", (c) => {
+    return streamSSE(c, async (stream) => {
+      const onEvent = (payload: TraceEvent) => {
+        stream.writeSSE({
+          event: payload.type,
+          data: JSON.stringify(payload.trace),
+        }).catch(() => {});
+      };
+      traceEvents.on("trace", onEvent);
+
+      const heartbeat = setInterval(() => {
+        stream.writeSSE({ event: "ping", data: "" }).catch(() => {});
+      }, 25_000);
+
+      stream.onAbort(() => {
+        clearInterval(heartbeat);
+        traceEvents.off("trace", onEvent);
+      });
+
+      while (!stream.aborted) {
+        await stream.sleep(60_000);
+      }
+      clearInterval(heartbeat);
+      traceEvents.off("trace", onEvent);
+    });
+  });
+
   // Get single trace with all spans and events
   app.get("/:id", async (c) => {
     const { id } = c.req.param();
@@ -129,6 +159,9 @@ export function createTraceRoutes(db: Db) {
       tags: body.tags ? JSON.stringify(body.tags) : null,
     }).run();
 
+    const created = await db.select().from(traces).where(eq(traces.id, id)).get();
+    if (created) emitTraceEvent("trace.created", created);
+
     return c.json({ id }, 201);
   });
 
@@ -143,6 +176,7 @@ export function createTraceRoutes(db: Db) {
       totalTokens?: number;
       totalCost?: number;
       metadata?: unknown;
+      reviewedAt?: string | null;
     }>();
 
     const updates: Record<string, unknown> = {};
@@ -153,6 +187,9 @@ export function createTraceRoutes(db: Db) {
     if (body.totalTokens !== undefined) updates.totalTokens = body.totalTokens;
     if (body.totalCost !== undefined) updates.totalCost = body.totalCost;
     if (body.metadata !== undefined) updates.metadata = JSON.stringify(body.metadata);
+    if (body.reviewedAt !== undefined) {
+      updates.reviewedAt = body.reviewedAt ? new Date(body.reviewedAt) : null;
+    }
 
     if (body.status === "completed" || body.status === "failed") {
       updates.completedAt = new Date();
@@ -163,6 +200,7 @@ export function createTraceRoutes(db: Db) {
     }
 
     const updated = await db.select().from(traces).where(eq(traces.id, id)).get();
+    if (updated) emitTraceEvent("trace.updated", updated);
     return c.json({ trace: updated });
   });
 
