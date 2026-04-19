@@ -2,6 +2,7 @@
   "name": "pathlight",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.9.7",
   "description": "Visual debugging, execution traces, and observability for AI agents",
   "workspaces": [
     "packages/*",
