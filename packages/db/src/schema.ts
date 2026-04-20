@@ -21,6 +21,11 @@ export const traces = sqliteTable("traces", {
     .$defaultFn(() => new Date()),
   completedAt: integer("completed_at", { mode: "timestamp" }),
   reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  // Git provenance — captured by the SDK at trace start so dashboard can
+  // attribute latency/cost regressions back to a specific commit.
+  gitCommit: text("git_commit"),          // full SHA, e.g. 7a2bf14...
+  gitBranch: text("git_branch"),          // e.g. "feature/retry-loop"
+  gitDirty: integer("git_dirty", { mode: "boolean" }),  // uncommitted changes at run time
 });
 
 // A span represents a single step within a trace (LLM call, tool use, decision, etc.)

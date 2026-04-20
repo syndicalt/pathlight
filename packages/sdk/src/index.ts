@@ -15,6 +15,31 @@
  *   trace.end({ output: finalResult });
  */
 
+import { execSync } from "node:child_process";
+
+interface GitContext {
+  commit: string;
+  branch: string;
+  dirty: boolean;
+}
+
+let cachedGit: GitContext | null | undefined;
+
+// Capture git HEAD / branch / dirtiness once per process. Returns null when the
+// process isn't inside a git checkout or when git isn't on PATH.
+function detectGitContext(): GitContext | null {
+  if (cachedGit !== undefined) return cachedGit;
+  try {
+    const commit = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const status = execSync("git status --porcelain", { stdio: ["ignore", "pipe", "ignore"] }).toString();
+    cachedGit = { commit, branch, dirty: status.length > 0 };
+  } catch {
+    cachedGit = null;
+  }
+  return cachedGit;
+}
+
 // Capture the caller's source location from the stack trace
 function captureSource(): { file: string; line: number; column: number; func: string } | null {
   const err = new Error();
@@ -46,17 +71,21 @@ interface PathlightConfig {
   baseUrl: string;
   projectId?: string;
   apiKey?: string;
+  /** Disable automatic git-context capture (commit/branch/dirty). */
+  disableGitContext?: boolean;
 }
 
 export class Pathlight {
   private baseUrl: string;
   private projectId?: string;
   private apiKey?: string;
+  private gitContextDisabled: boolean;
 
   constructor(config: PathlightConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.projectId = config.projectId;
     this.apiKey = config.apiKey;
+    this.gitContextDisabled = !!config.disableGitContext;
   }
 
   private async post(path: string, body: unknown) {
@@ -89,7 +118,14 @@ export class Pathlight {
 
   /** @internal */
   async _createTrace(data: { name: string; projectId?: string; input?: unknown; tags?: string[]; metadata?: unknown }) {
-    return this.post("/v1/traces", { ...data, projectId: data.projectId || this.projectId });
+    const git = this.gitContextDisabled ? null : detectGitContext();
+    return this.post("/v1/traces", {
+      ...data,
+      projectId: data.projectId || this.projectId,
+      ...(git
+        ? { gitCommit: git.commit, gitBranch: git.branch, gitDirty: git.dirty }
+        : {}),
+    });
   }
 
   /** @internal */

@@ -73,6 +73,39 @@ export function createTraceRoutes(db: Db) {
     return c.json({ traces: enriched, total: total?.count || 0, limit, offset });
   });
 
+  // Per-commit aggregate stats. Powers the regressions dashboard.
+  app.get("/commits", async (c) => {
+    const projectId = c.req.query("projectId");
+    const name = c.req.query("name");
+    const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+
+    const conditions = [sql`${traces.gitCommit} IS NOT NULL`];
+    if (projectId) conditions.push(eq(traces.projectId, projectId));
+    if (name) conditions.push(eq(traces.name, name));
+
+    const rows = await db
+      .select({
+        commit: traces.gitCommit,
+        branch: traces.gitBranch,
+        dirty: traces.gitDirty,
+        traceCount: sql<number>`count(*)`.as("trace_count"),
+        avgDuration: sql<number>`avg(${traces.totalDurationMs})`.as("avg_duration"),
+        avgTokens: sql<number>`avg(${traces.totalTokens})`.as("avg_tokens"),
+        avgCost: sql<number>`avg(${traces.totalCost})`.as("avg_cost"),
+        failed: sql<number>`sum(case when ${traces.status} = 'failed' then 1 else 0 end)`.as("failed"),
+        firstSeen: sql<number>`min(${traces.createdAt})`.as("first_seen"),
+        lastSeen: sql<number>`max(${traces.createdAt})`.as("last_seen"),
+      })
+      .from(traces)
+      .where(and(...conditions))
+      .groupBy(traces.gitCommit, traces.gitBranch, traces.gitDirty)
+      .orderBy(desc(sql`max(${traces.createdAt})`))
+      .limit(limit)
+      .all();
+
+    return c.json({ commits: rows });
+  });
+
   // SSE stream of trace.created / trace.updated events
   app.get("/stream", (c) => {
     return streamSSE(c, async (stream) => {
@@ -142,6 +175,9 @@ export function createTraceRoutes(db: Db) {
       input?: unknown;
       metadata?: unknown;
       tags?: string[];
+      gitCommit?: string;
+      gitBranch?: string;
+      gitDirty?: boolean;
     }>();
 
     if (!body.name) {
@@ -157,6 +193,9 @@ export function createTraceRoutes(db: Db) {
       input: body.input ? JSON.stringify(body.input) : null,
       metadata: body.metadata ? JSON.stringify(body.metadata) : null,
       tags: body.tags ? JSON.stringify(body.tags) : null,
+      gitCommit: body.gitCommit || null,
+      gitBranch: body.gitBranch || null,
+      gitDirty: body.gitDirty ?? null,
     }).run();
 
     const created = await db.select().from(traces).where(eq(traces.id, id)).get();

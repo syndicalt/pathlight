@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchApi, COLLECTOR_URL } from "../lib/api";
 import { formatDuration, formatTokens, formatTimestamp } from "../lib/format";
 
@@ -17,6 +17,9 @@ interface Trace {
   tags: string | null;
   createdAt: string;
   reviewedAt: string | null;
+  gitCommit: string | null;
+  gitBranch: string | null;
+  gitDirty: boolean | null;
   issues: string[];
   hasIssues: boolean;
 }
@@ -29,7 +32,17 @@ const STATUS_STYLES: Record<string, { dot: string; text: string }> = {
 };
 
 export default function TracesPage() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto px-6 py-8 text-zinc-500">Loading…</div>}>
+      <TracesPageInner />
+    </Suspense>
+  );
+}
+
+function TracesPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const commitFilter = searchParams.get("commit");
   const [traces, setTraces] = useState<Trace[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -97,12 +110,14 @@ export default function TracesPage() {
     };
   }, []);
 
-  const filtered = filter
-    ? traces.filter((t) =>
-        t.name.toLowerCase().includes(filter.toLowerCase()) ||
-        t.status.includes(filter.toLowerCase())
-      )
-    : traces;
+  const filtered = traces
+    .filter((t) => (commitFilter ? (t.gitCommit || "").startsWith(commitFilter) : true))
+    .filter((t) =>
+      filter
+        ? t.name.toLowerCase().includes(filter.toLowerCase()) ||
+          t.status.includes(filter.toLowerCase())
+        : true,
+    );
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -111,15 +126,36 @@ export default function TracesPage() {
           <h1 className="text-2xl font-bold">Traces</h1>
           <p className="text-sm text-zinc-500 mt-1">{total} total trace{total !== 1 ? "s" : ""}</p>
         </div>
+        <Link
+          href="/commits"
+          className="text-xs px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100 transition-colors"
+        >
+          Commits →
+        </Link>
       </div>
 
-      <input
-        type="text"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Filter by name or status..."
-        className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-blue-500"
-      />
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter by name or status..."
+          className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-blue-500"
+        />
+        {commitFilter && (
+          <div className="flex items-center gap-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+            <span className="text-zinc-500">commit</span>
+            <code className="font-mono text-zinc-300">{commitFilter.slice(0, 8)}</code>
+            <button
+              onClick={() => router.push("/")}
+              className="text-zinc-500 hover:text-zinc-300"
+              aria-label="Clear commit filter"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <p className="text-zinc-500 py-8">Loading traces...</p>
@@ -193,6 +229,25 @@ export default function TracesPage() {
                         {tag}
                       </span>
                     ))}
+                    {trace.gitCommit && (
+                      <span
+                        title={`${trace.gitBranch || "?"} @ ${trace.gitCommit}${trace.gitDirty ? " (dirty)" : ""}`}
+                        className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                          trace.gitDirty
+                            ? "bg-amber-900/20 text-amber-300 border-amber-800/40"
+                            : "bg-zinc-800 text-zinc-400 border-zinc-700/50"
+                        }`}
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <circle cx="6" cy="6" r="2" />
+                          <circle cx="18" cy="6" r="2" />
+                          <circle cx="18" cy="18" r="2" />
+                          <path strokeLinecap="round" d="M8 6h6a4 4 0 014 4v8" />
+                        </svg>
+                        {trace.gitCommit.slice(0, 7)}
+                        {trace.gitDirty && <span className="opacity-70">*</span>}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-6 shrink-0 text-xs text-zinc-500">
                     <span>{formatDuration(trace.totalDurationMs)}</span>
