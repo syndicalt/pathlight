@@ -213,18 +213,22 @@ function ReplayPanel({ span }: { span: Span }) {
   const [messages, setMessages] = useState<ReplayMessage[]>(initial.messages);
   const [system, setSystem] = useState<string>(initial.system ?? "");
   const [model, setModel] = useState(span.model ?? "");
+  const [provider, setProvider] = useState<string>((span.provider || "openai").toLowerCase());
   const [apiKey, setApiKey] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ output: string; durationMs: number; tokens?: string; error?: string } | null>(null);
 
   const COLLECTOR_URL = process.env.NEXT_PUBLIC_COLLECTOR_URL || "http://localhost:4100";
 
+  // Load stored apiKey + baseUrl per provider.
   useEffect(() => {
-    // Load stored API key if present (scoped per provider).
-    const provider = (span.provider || "openai").toLowerCase();
-    const stored = typeof window !== "undefined" ? localStorage.getItem(`pathlight:replay-key:${provider}`) : null;
-    if (stored) setApiKey(stored);
-  }, [span.provider]);
+    if (typeof window === "undefined") return;
+    const storedKey = localStorage.getItem(`pathlight:replay-key:${provider}`);
+    const storedBase = localStorage.getItem(`pathlight:replay-base:${provider}`);
+    setApiKey(storedKey ?? "");
+    setBaseUrl(storedBase ?? "");
+  }, [provider]);
 
   // Keep the editor fresh when jumping between spans.
   useEffect(() => {
@@ -232,14 +236,17 @@ function ReplayPanel({ span }: { span: Span }) {
     setMessages(next.messages);
     setSystem(next.system ?? "");
     setModel(span.model ?? "");
+    setProvider((span.provider || "openai").toLowerCase());
     setResult(null);
-  }, [span.id, span.model]);
+  }, [span.id, span.model, span.provider]);
 
-  const provider = (span.provider || "openai").toLowerCase();
+  const isAnthropic = provider === "anthropic";
 
   const run = async () => {
-    if (apiKey) {
-      localStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
+    if (typeof window !== "undefined") {
+      if (apiKey) localStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
+      if (baseUrl) localStorage.setItem(`pathlight:replay-base:${provider}`, baseUrl);
+      else localStorage.removeItem(`pathlight:replay-base:${provider}`);
     }
     setRunning(true);
     setResult(null);
@@ -253,6 +260,7 @@ function ReplayPanel({ span }: { span: Span }) {
           system: system || undefined,
           messages,
           apiKey: apiKey || undefined,
+          baseUrl: baseUrl || undefined,
         }),
       });
       const data = await res.json();
@@ -276,7 +284,15 @@ function ReplayPanel({ span }: { span: Span }) {
     <div className="pt-4 border-t border-zinc-800">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Replay</p>
-        <span className="text-[10px] text-zinc-600">{provider}</span>
+        <select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value.toLowerCase())}
+          className="bg-zinc-800 border border-zinc-700 rounded text-[10px] px-1.5 py-0.5 text-zinc-300 uppercase tracking-widest"
+          aria-label="Provider"
+        >
+          <option value="openai">OpenAI-compatible</option>
+          <option value="anthropic">Anthropic</option>
+        </select>
       </div>
 
       <div className="space-y-2">
@@ -286,6 +302,14 @@ function ReplayPanel({ span }: { span: Span }) {
           placeholder="model"
           className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-200"
         />
+        {!isAnthropic && (
+          <input
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="base URL — optional (e.g. https://gateway.provara.xyz for Provara)"
+            className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-200"
+          />
+        )}
         {system !== undefined && (
           <textarea
             value={system}
@@ -333,7 +357,7 @@ function ReplayPanel({ span }: { span: Span }) {
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder={`${provider} api key (saved locally; collector env var also works)`}
+          placeholder="api key — saved locally per provider; REPLAY_API_KEY env var also works"
           className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-200"
         />
 

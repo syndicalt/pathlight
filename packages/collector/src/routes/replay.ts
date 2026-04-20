@@ -2,10 +2,15 @@ import { Hono } from "hono";
 
 /**
  * Server-side proxy that lets the dashboard re-run an LLM call with edited
- * inputs. The browser can't call OpenAI/Anthropic directly (CORS) so the
- * request flows through the collector. API keys are read from env vars
- * (OPENAI_API_KEY, ANTHROPIC_API_KEY) by default, but the request can
- * override them per-call for quick experimentation.
+ * inputs. The browser can't call OpenAI/Anthropic (and OpenAI-compatible
+ * gateways like Provara/Groq/Together) directly without CORS surprises, so
+ * the request flows through the collector.
+ *
+ * Credential resolution order (both apiKey and baseUrl):
+ *   1. Explicit field in the request body
+ *   2. Generic REPLAY_API_KEY / REPLAY_BASE_URL env vars
+ *   3. Provider-specific env vars (OPENAI_API_KEY / ANTHROPIC_API_KEY) —
+ *      baseUrl falls back to each provider's canonical endpoint
  */
 export function createReplayRoutes() {
   const app = new Hono();
@@ -30,10 +35,11 @@ export function createReplayRoutes() {
 
     try {
       if (body.provider === "anthropic") {
-        const apiKey = body.apiKey || process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) return c.json({ error: "ANTHROPIC_API_KEY not set and no apiKey in request" }, 400);
+        const apiKey = body.apiKey || process.env.REPLAY_API_KEY || process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) return c.json({ error: "No API key — set ANTHROPIC_API_KEY/REPLAY_API_KEY on the collector or pass apiKey in the request" }, 400);
 
-        const base = body.baseUrl || "https://api.anthropic.com";
+        const rawBase = body.baseUrl || process.env.REPLAY_BASE_URL || "https://api.anthropic.com";
+        const base = normalizeBase(rawBase);
         const res = await fetch(`${base}/v1/messages`, {
           method: "POST",
           headers: {
@@ -62,9 +68,10 @@ export function createReplayRoutes() {
         });
       }
 
-      // OpenAI-compatible (OpenAI, Ollama, Together, Groq, etc)
-      const apiKey = body.apiKey || process.env.OPENAI_API_KEY;
-      const base = body.baseUrl || "https://api.openai.com";
+      // OpenAI-compatible (OpenAI, Provara, Ollama, Together, Groq, etc.)
+      const apiKey = body.apiKey || process.env.REPLAY_API_KEY || process.env.OPENAI_API_KEY;
+      const rawBase = body.baseUrl || process.env.REPLAY_BASE_URL || "https://api.openai.com";
+      const base = normalizeBase(rawBase);
       const res = await fetch(`${base}/v1/chat/completions`, {
         method: "POST",
         headers: {
@@ -100,4 +107,10 @@ export function createReplayRoutes() {
   });
 
   return app;
+}
+
+// Accept either "https://gateway.provara.xyz" or
+// "https://gateway.provara.xyz/v1" — downstream code appends /v1/<path>.
+function normalizeBase(url: string): string {
+  return url.replace(/\/+$/, "").replace(/\/v1$/, "");
 }

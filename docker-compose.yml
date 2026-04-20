@@ -25,9 +25,13 @@ services:
     environment:
       - DATABASE_URL=file:/data/pathlight.db
       - PORT=4100
-      # Optional: set these to enable LLM-span replay from the dashboard.
-      # - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Optional: enable LLM-span replay from the dashboard. Generic pair works
+      # for any OpenAI-compatible gateway (Provara, Groq, Together, Ollama…)
+      # and Anthropic; provider-specific pair is a fallback.
+      - REPLAY_API_KEY=${REPLAY_API_KEY:-}
+      - REPLAY_BASE_URL=${REPLAY_BASE_URL:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4100/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
       interval: 10s

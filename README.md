@@ -425,8 +425,10 @@ individual amber-highlighted rows in the waterfall.
 | `PORT` | `4100` | Collector port |
 | `NEXT_PUBLIC_COLLECTOR_URL` | `http://localhost:4100` | Collector URL (browser) |
 | `PATHLIGHT_URL` | `http://localhost:4100` | Collector URL for CLI (`pathlight`, `pathlight-eval`) |
-| `OPENAI_API_KEY` | — | Server-side fallback for `/v1/replay/llm` |
-| `ANTHROPIC_API_KEY` | — | Server-side fallback for `/v1/replay/llm` |
+| `REPLAY_API_KEY` | — | Generic server-side key for `/v1/replay/llm` — works with OpenAI, Anthropic, or any OpenAI-compatible gateway |
+| `REPLAY_BASE_URL` | — | Base URL for OpenAI-compatible replay (e.g. `https://gateway.provara.xyz`). Accepts with or without trailing `/v1` |
+| `OPENAI_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is OpenAI-compatible |
+| `ANTHROPIC_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is Anthropic |
 
 ---
 

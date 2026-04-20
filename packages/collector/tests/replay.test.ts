@@ -13,6 +13,8 @@ describe("POST /v1/replay/llm", () => {
     globalThis.fetch = originalFetch;
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.REPLAY_API_KEY;
+    delete process.env.REPLAY_BASE_URL;
   });
 
   it("400 when provider/model/messages are missing", async () => {
@@ -162,5 +164,64 @@ describe("POST /v1/replay/llm", () => {
     );
 
     expect(authHeader).toBe("Bearer sk-from-env");
+  });
+
+  it("REPLAY_API_KEY wins over OPENAI_API_KEY", async () => {
+    process.env.OPENAI_API_KEY = "sk-openai";
+    process.env.REPLAY_API_KEY = "pvra-replay";
+    let authHeader: string | null = null;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      authHeader = new Headers(init?.headers).get("authorization");
+      return new Response(JSON.stringify({ choices: [{ message: { content: "" } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    const { call } = await buildCollector();
+    await call(
+      "/v1/replay/llm",
+      jsonPost({ provider: "openai", model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }] }),
+    );
+
+    expect(authHeader).toBe("Bearer pvra-replay");
+  });
+
+  it("REPLAY_BASE_URL routes requests to the configured gateway", async () => {
+    process.env.REPLAY_API_KEY = "pvra-test";
+    process.env.REPLAY_BASE_URL = "https://gateway.provara.xyz";
+    let hitUrl: string | null = null;
+    globalThis.fetch = (async (url: string) => {
+      hitUrl = String(url);
+      return new Response(JSON.stringify({ choices: [{ message: { content: "hello" } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    const { call } = await buildCollector();
+    await call(
+      "/v1/replay/llm",
+      jsonPost({ provider: "openai", model: "claude-sonnet-4-6", messages: [{ role: "user", content: "hi" }] }),
+    );
+
+    expect(hitUrl).toBe("https://gateway.provara.xyz/v1/chat/completions");
+  });
+
+  it("normalizes a base URL passed with /v1 suffix", async () => {
+    let hitUrl: string | null = null;
+    globalThis.fetch = (async (url: string) => {
+      hitUrl = String(url);
+      return new Response(JSON.stringify({ choices: [{ message: { content: "" } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    const { call } = await buildCollector();
+    await call(
+      "/v1/replay/llm",
+      jsonPost({
+        provider: "openai",
+        model: "m",
+        messages: [{ role: "user", content: "hi" }],
+        apiKey: "sk",
+        baseUrl: "https://gateway.provara.xyz/v1",   // trailing /v1
+      }),
+    );
+
+    // Should resolve to a single /v1 segment, not /v1/v1
+    expect(hitUrl).toBe("https://gateway.provara.xyz/v1/chat/completions");
   });
 });

@@ -108,15 +108,32 @@ Set `provider: "anthropic"`. Hits `POST /v1/messages` with Anthropic's
 schema (including the `anthropic-version` header). The collector translates
 the response back into the unified `output` field.
 
-## API key handling
+## API key + base URL handling
 
-Priority order:
-1. `apiKey` field in the request body (per-request override)
-2. Provider env var on the collector (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+Priority order for both credentials:
 
-The dashboard stores the per-request key in `localStorage` under
-`pathlight:replay-key:<provider>` so you don't re-type it. It never sends
-the key anywhere except the collector → provider chain.
+1. `apiKey` / `baseUrl` fields in the request body (per-request override)
+2. Generic `REPLAY_API_KEY` / `REPLAY_BASE_URL` env vars on the collector —
+   works with any provider (OpenAI-compatible gateway, Anthropic, or vanilla OpenAI)
+3. Provider-specific env vars (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+
+The dashboard persists both per-request values in `localStorage` under
+`pathlight:replay-key:<provider>` and `pathlight:replay-base:<provider>`
+so you don't re-type them. They're only sent along the collector →
+provider chain.
+
+### Using an OpenAI-compatible gateway (Provara, Groq, Together, Ollama…)
+
+Set the base URL either per-request from the dashboard or via env on the
+collector:
+
+```bash
+REPLAY_API_KEY=pvra_…
+REPLAY_BASE_URL=https://gateway.provara.xyz
+```
+
+The collector accepts the base URL with or without a trailing `/v1` —
+the path is appended automatically.
 
 ## Not in scope yet
 
