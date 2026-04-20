@@ -101,51 +101,65 @@ function JsonBlock({ data, label }: { data: unknown; label: string }) {
   );
 }
 
-function SpanInspectorBody({ span }: { span: Span }) {
+function SpanInspector({ span, onClose }: { span: Span; onClose: () => void }) {
+  const style = TYPE_STYLES[span.type] || TYPE_STYLES.custom;
   const meta = parseJson(span.metadata) as Record<string, unknown> | null;
   const source = meta?._source as { file?: string; line?: number; func?: string } | undefined;
   const isLlm = span.type === "llm";
 
   return (
-    <div className="px-5 py-4 space-y-4 border-t border-zinc-800 bg-zinc-950/40">
-      {span.error && (
-        <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-3">
-          <p className="text-[10px] text-red-400 uppercase tracking-widest mb-1">Error</p>
-          <p className="text-xs text-red-300">{span.error}</p>
+    <aside className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col">
+      <div className="border-b border-zinc-800 px-5 py-3 flex items-center gap-3">
+        <span className={`px-2 py-0.5 rounded text-[10px] font-medium border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
+          {span.type}
+        </span>
+        <h2 className="font-semibold text-sm truncate">{span.name}</h2>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[span.status] || "bg-zinc-500"}`} />
+          <span className="text-xs text-zinc-400">{span.status}</span>
         </div>
-      )}
+        <span className="text-xs text-zinc-500 font-mono shrink-0">{formatDuration(span.durationMs)}</span>
+        {(span.inputTokens || span.outputTokens) ? (
+          <span className="text-xs text-zinc-500 font-mono shrink-0">{span.inputTokens || 0}/{span.outputTokens || 0} tok</span>
+        ) : null}
+        <button onClick={onClose} className="ml-auto text-zinc-500 hover:text-zinc-300 shrink-0" aria-label="Close inspector">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-      {source?.file && (
-        <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 flex items-center gap-3 text-xs">
-          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Source</span>
-          <code className="text-blue-400 font-mono">
-            {source.file.split("/").slice(-2).join("/")}:{source.line}
-          </code>
-          {source.func && source.func !== "(anonymous)" && (
-            <span className="text-zinc-500">in <span className="text-zinc-400">{source.func}()</span></span>
-          )}
-        </div>
-      )}
-
-      {isLlm ? (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-4">
-          <ReplayPanel span={span} />
-          <div className="space-y-3">
-            <JsonBlock data={parseJson(span.input)} label="Original Input" />
-            <JsonBlock data={parseJson(span.output)} label="Original Output" />
-            <JsonBlock data={parseJson(span.metadata)} label="Metadata" />
+      <div className="px-5 py-4 space-y-4 overflow-y-auto">
+        {span.error && (
+          <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-3">
+            <p className="text-[10px] text-red-400 uppercase tracking-widest mb-1">Error</p>
+            <p className="text-xs text-red-300">{span.error}</p>
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <JsonBlock data={parseJson(span.input)} label="Input" />
-          <JsonBlock data={parseJson(span.output)} label="Output" />
-          <JsonBlock data={parseJson(span.toolArgs)} label="Tool Arguments" />
-          <JsonBlock data={parseJson(span.toolResult)} label="Tool Result" />
+        )}
+
+        {source?.file && (
+          <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 flex items-center gap-3 text-xs flex-wrap">
+            <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Source</span>
+            <code className="text-blue-400 font-mono">
+              {source.file.split("/").slice(-2).join("/")}:{source.line}
+            </code>
+            {source.func && source.func !== "(anonymous)" && (
+              <span className="text-zinc-500">in <span className="text-zinc-400">{source.func}()</span></span>
+            )}
+          </div>
+        )}
+
+        {isLlm && <ReplayPanel span={span} />}
+
+        <div className="space-y-3">
+          <JsonBlock data={parseJson(span.input)} label={isLlm ? "Original Input" : "Input"} />
+          <JsonBlock data={parseJson(span.output)} label={isLlm ? "Original Output" : "Output"} />
+          {!isLlm && <JsonBlock data={parseJson(span.toolArgs)} label="Tool Arguments" />}
+          {!isLlm && <JsonBlock data={parseJson(span.toolResult)} label="Tool Result" />}
           <JsonBlock data={parseJson(span.metadata)} label="Metadata" />
         </div>
-      )}
-    </div>
+      </div>
+    </aside>
   );
 }
 
@@ -437,50 +451,38 @@ export default function TraceDetailPage() {
         </div>
       )}
 
-      {/* Timeline */}
+      {/* Timeline + (optional) side-by-side inspector */}
       <div>
         <h2 className="text-sm font-semibold text-zinc-400 mb-3">Execution Timeline</h2>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-          {/* Time axis */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 text-[10px] text-zinc-600">
-            <span>0ms</span>
-            <span>{formatDuration(totalMs)}</span>
-          </div>
+        <div className={`grid gap-4 ${selectedSpan ? "grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" : "grid-cols-1"}`}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+            {/* Time axis */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 text-[10px] text-zinc-600">
+              <span>0ms</span>
+              <span>{formatDuration(totalMs)}</span>
+            </div>
 
-          {/* Spans as a waterfall */}
-          <div className="divide-y divide-zinc-800/50">
-            {spans.map((span) => {
-              const spanStart = new Date(span.startedAt).getTime();
-              const spanDuration = span.durationMs || (Date.now() - spanStart);
-              const offsetPct = ((spanStart - traceStart) / totalMs) * 100;
-              const widthPct = Math.max((spanDuration / totalMs) * 100, 0.5);
-              const style = TYPE_STYLES[span.type] || TYPE_STYLES.custom;
-              const isSelected = selectedSpan?.id === span.id;
-              const hasIssue = spanHasIssues(span);
+            {/* Spans as a waterfall */}
+            <div className="divide-y divide-zinc-800/50">
+              {spans.map((span) => {
+                const spanStart = new Date(span.startedAt).getTime();
+                const spanDuration = span.durationMs || (Date.now() - spanStart);
+                const offsetPct = ((spanStart - traceStart) / totalMs) * 100;
+                const widthPct = Math.max((spanDuration / totalMs) * 100, 0.5);
+                const style = TYPE_STYLES[span.type] || TYPE_STYLES.custom;
+                const isSelected = selectedSpan?.id === span.id;
+                const hasIssue = spanHasIssues(span);
 
-              return (
-                <div
-                  key={span.id}
-                  ref={isSelected ? inspectorRef : undefined}
-                  className={`scroll-mt-4 ${isSelected ? "bg-zinc-900 ring-1 ring-inset ring-blue-500/40" : ""}`}
-                >
+                return (
                   <div
+                    key={span.id}
                     className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${
                       isSelected ? "bg-zinc-800/60" : hasIssue ? "bg-amber-950/20 hover:bg-amber-950/30" : "hover:bg-zinc-800/30"
                     }`}
                     onClick={() => setSelectedSpan(isSelected ? null : span)}
                   >
                     {/* Label */}
-                    <div className="w-48 shrink-0 flex items-center gap-2 min-w-0">
-                      <svg
-                        className={`w-3 h-3 text-zinc-600 shrink-0 transition-transform ${isSelected ? "rotate-90" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
+                    <div className="w-40 shrink-0 flex items-center gap-2 min-w-0">
                       {hasIssue && (
                         <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -493,7 +495,7 @@ export default function TraceDetailPage() {
                     </div>
 
                     {/* Waterfall bar */}
-                    <div className="flex-1 relative h-5 bg-zinc-800/40 rounded overflow-hidden">
+                    <div className="flex-1 relative h-5 bg-zinc-800/40 rounded overflow-hidden min-w-0">
                       <div
                         className={`absolute top-0 h-full rounded ${
                           span.status === "failed" ? "bg-red-500" : hasIssue ? "bg-amber-500" : span.type === "llm" ? "bg-blue-500" : span.type === "tool" ? "bg-emerald-500" : span.type === "retrieval" ? "bg-violet-500" : "bg-zinc-500"
@@ -508,7 +510,7 @@ export default function TraceDetailPage() {
                     </div>
 
                     {/* Duration + tokens */}
-                    <div className="w-28 shrink-0 text-right">
+                    <div className="shrink-0 text-right">
                       <span className="text-xs text-zinc-400">{formatDuration(span.durationMs)}</span>
                       {span.inputTokens ? (
                         <span className="text-[10px] text-zinc-600 ml-2">
@@ -517,12 +519,16 @@ export default function TraceDetailPage() {
                       ) : null}
                     </div>
                   </div>
-
-                  {isSelected && <SpanInspectorBody span={span} />}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+
+          {selectedSpan && (
+            <div ref={inspectorRef} className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)]">
+              <SpanInspector span={selectedSpan} onClose={() => setSelectedSpan(null)} />
+            </div>
+          )}
         </div>
       </div>
     </div>
