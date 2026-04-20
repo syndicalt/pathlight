@@ -15,9 +15,16 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["ai", "agent", "trace", "cli", "pathlight"],
+  "keywords": [
+    "ai",
+    "agent",
+    "trace",
+    "cli",
+    "pathlight"
+  ],
   "author": "Nicholas Blanchard",
   "license": "MIT",
   "repository": {
@@ -27,6 +34,7 @@
   },
   "homepage": "https://github.com/syndicalt/pathlight",
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }

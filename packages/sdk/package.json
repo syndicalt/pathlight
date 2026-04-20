@@ -17,6 +17,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -38,8 +39,8 @@
     "directory": "packages/sdk"
   },
   "homepage": "https://github.com/syndicalt/pathlight",
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }
