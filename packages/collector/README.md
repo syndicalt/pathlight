@@ -37,6 +37,8 @@ Mounted in `src/router.ts`:
 - `/v1/breakpoints` — live breakpoint registry + SSE
   ([breakpoint routes](src/routes/breakpoints.ts))
 - `/v1/replay/llm` — OpenAI/Anthropic proxy ([replay routes](src/routes/replay.ts))
+- `/v1/otlp/traces` — OTLP/HTTP ingest for OTel-instrumented apps
+  ([otlp routes](src/routes/otlp.ts))
 - `/health` — liveness
 
 Full route and response reference in the [main README](../../README.md#api-reference).
@@ -77,5 +79,6 @@ src/
     ├── spans.ts          # Span CRUD, event logging
     ├── projects.ts       # Project CRUD
     ├── breakpoints.ts    # Register + wait, resume, cancel, SSE stream
-    └── replay.ts         # LLM replay proxy (OpenAI-compatible + Anthropic)
+    ├── replay.ts         # LLM replay proxy (OpenAI-compatible + Anthropic)
+    └── otlp.ts           # OTLP/HTTP ingest (gen_ai.* semantic conventions)
 ```

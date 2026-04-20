@@ -22,18 +22,31 @@ Turborepo monorepo with npm workspaces:
   CI runner.
 - `packages/cli` — `@pathlight/cli` with `pathlight share` subcommand for
   exporting single-file HTML trace snapshots.
+- `packages/sdk-python` — `pathlight` on PyPI. Sync + async clients,
+  context managers, full feature parity with the TS SDK.
 - `apps/web` — Next.js + Tailwind dashboard (port 3100). Routes: `/`
   (list), `/traces/[id]` (detail + side-by-side inspector), `/traces/compare`
   (diff), `/commits` (regression view).
+- Root-level `Dockerfile.collector` + `Dockerfile.web` + `docker-compose.yml`
+  ship the stack. GHCR publishes `ghcr.io/syndicalt/pathlight-{collector,web}`
+  on every push to master.
 
 ## Commands
 
 ```bash
-npx turbo dev               # Start collector + web concurrently
-npm run dev -w packages/collector   # Collector only (port 4100)
-npm run dev -w apps/web             # Web UI only (port 3100)
+# Docker (single-command self-host)
+docker compose up -d               # Pull + run both services
+docker compose down -v             # Stop + wipe data
 
-# Database (the collector's DB is at packages/collector/pathlight.db)
+# Local dev
+npx turbo dev                      # Start collector + web concurrently
+npx turbo build                    # Build all packages
+npx turbo test                     # Run the test suite
+npm run dev -w packages/collector  # Collector only (port 4100)
+npm run dev -w apps/web            # Web UI only (port 3100)
+
+# Database (the collector's DB is at packages/collector/pathlight.db
+# in local dev; in Docker it lives in the pathlight_data volume)
 npm run db:generate -w packages/db
 DATABASE_URL="file:$(pwd)/packages/collector/pathlight.db" \
   npm run db:migrate -w packages/db
@@ -91,4 +104,11 @@ const state = await tl.breakpoint({ label: "checkpoint", state: { foo } });
 - Commit messages use `feat(#N):` / `fix(#N):` / `refactor(web):` style.
 - Shiplog workflow: each feature gets an `issue/N-slug` branch and PR.
 - Keep the collector DB migrated (`DATABASE_URL` must point at
-  `packages/collector/pathlight.db` for CLI migrations).
+  `packages/collector/pathlight.db` for CLI migrations). Docker handles
+  this automatically on container boot.
+- Workspace packages `@pathlight/db`, `@pathlight/sdk`, `@pathlight/eval`,
+  `@pathlight/cli` all compile to `dist/` via `tsc`. **Don't** switch any
+  of them back to `main: ./src/*.ts` — it breaks production `node`
+  execution (only works under `tsx`).
+- Empty directories aren't tracked by git. If a new empty dir needs to
+  exist for Docker COPY to work, add a `.gitkeep` (see `apps/web/public/`).

@@ -28,6 +28,7 @@ No more debugging agents with `console.log`.
 | **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
 | **OpenTelemetry interop** | Collector accepts OTLP/HTTP; any OTel-instrumented app can ship to Pathlight | [docs/opentelemetry.md](docs/opentelemetry.md) |
 | **Python SDK** | `pip install pathlight` — same dashboard features, Pythonic API, sync + async | [docs/python.md](docs/python.md) |
+| **One-command deploy** | `docker compose up -d` pulls prebuilt images from GHCR; SQLite persists in a named volume | [docs/docker.md](docs/docker.md) |
 | **Automatic source mapping** | Every span records the file:line where it was created | [overview](#automatic-source-mapping) |
 | **Issue detection** | Failed spans + error-pattern matches flag traces in the list | [overview](#issue-detection) |
 
@@ -211,18 +212,25 @@ pathlight/
 │   │       │   ├── spans.ts         # Span CRUD
 │   │       │   ├── projects.ts      # Project CRUD
 │   │       │   ├── breakpoints.ts   # Live breakpoint register/wait/resume/SSE
-│   │       │   └── replay.ts        # LLM replay proxy (OpenAI + Anthropic)
+│   │       │   ├── replay.ts        # LLM replay proxy (OpenAI + Anthropic)
+│   │       │   └── otlp.ts          # OTLP/HTTP ingest (gen_ai.* mapping)
 │   │       ├── events.ts            # Trace EventEmitter for SSE fan-out
 │   │       ├── breakpoints.ts       # In-memory breakpoint registry
 │   │       └── router.ts            # CORS + route mounting
-│   ├── db/               # Drizzle ORM + SQLite
-│   │   ├── drizzle/                 # Migrations
+│   ├── db/               # Drizzle ORM + SQLite (builds to dist/)
+│   │   ├── drizzle/                 # Migrations (shipped with runtime)
 │   │   └── src/
 │   │       ├── schema.ts            # traces, spans, events, projects, scores
 │   │       ├── retire.ts            # db:retire command
 │   │       └── index.ts
-│   ├── sdk/              # TypeScript SDK
+│   ├── sdk/              # TypeScript SDK — @pathlight/sdk
 │   │   └── src/index.ts             # Pathlight, Trace, Span, breakpoint()
+│   ├── sdk-python/       # Python SDK — pathlight on PyPI
+│   │   ├── src/pathlight/
+│   │   │   ├── client.py            # Pathlight / AsyncPathlight classes
+│   │   │   ├── git.py               # Auto git-context capture
+│   │   │   └── _source.py           # Stack-walk source location
+│   │   └── tests/                   # pytest + pytest-httpx
 │   ├── eval/             # Assertion DSL + pathlight-eval CLI
 │   │   ├── bin/pathlight-eval.js
 │   │   ├── examples/
@@ -232,6 +240,14 @@ pathlight/
 │       └── src/
 │           ├── commands/share.ts    # pathlight share <trace-id>
 │           └── viewer-template.ts   # Self-contained HTML viewer
+├── Dockerfile.collector  # Multi-stage build; migrations run on boot
+├── Dockerfile.web        # Next.js 15 standalone runtime
+├── docker-compose.yml    # Collector + dashboard + SQLite volume
+├── .github/workflows/
+│   ├── ci.yml            # Node + Python tests on every PR
+│   ├── docker.yml        # Publish GHCR images on push to master
+│   ├── publish-python.yml  # PyPI release on py-v* tag
+│   └── ...
 └── CHANGELOG.md
 ```
 
@@ -417,13 +433,20 @@ individual amber-highlighted rows in the waterfall.
 ## Commands
 
 ```bash
-# Workspace-level
+# Docker (recommended)
+docker compose up -d                   # Pull + start everything
+docker compose down                    # Stop (data preserved in volume)
+docker compose down -v                 # Stop + wipe data
+docker compose pull && docker compose up -d   # Upgrade to latest images
+
+# Local dev (monorepo)
 npx turbo dev                          # Collector + web together
 npx turbo build                        # Build all packages
+npx turbo test                         # Run the full test suite
 npm run dev -w packages/collector      # Collector only (4100)
 npm run dev -w apps/web                # Web only (3100)
 
-# Database
+# Database (local dev — Docker handles migrations automatically)
 npm run db:generate -w packages/db                 # Generate Drizzle migration
 DATABASE_URL="file:$(pwd)/packages/collector/pathlight.db" \
   npm run db:migrate -w packages/db               # Apply migrations
