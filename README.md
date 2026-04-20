@@ -27,6 +27,7 @@ No more debugging agents with `console.log`.
 | **Eval-as-code + CI** | `expect(trace).toCostLessThan(0.10)` — assert over recent traces, exit nonzero in CI | [packages/eval/README.md](packages/eval/README.md) |
 | **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
 | **OpenTelemetry interop** | Collector accepts OTLP/HTTP; any OTel-instrumented app can ship to Pathlight | [docs/opentelemetry.md](docs/opentelemetry.md) |
+| **Python SDK** | `pip install pathlight` — same dashboard features, Pythonic API, sync + async | [docs/python.md](docs/python.md) |
 | **Automatic source mapping** | Every span records the file:line where it was created | [overview](#automatic-source-mapping) |
 | **Issue detection** | Failed spans + error-pattern matches flag traces in the list | [overview](#issue-detection) |
 

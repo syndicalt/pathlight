@@ -18,10 +18,12 @@ start, see [../README.md](../README.md).
   `pathlight share`
 - [OpenTelemetry interop](opentelemetry.md) — OTLP/HTTP ingest, gen_ai
   semantic conventions, attribute mapping
+- [Python SDK](python.md) — mirror of the TS SDK with Pythonic idioms
 
 ## By package
 
 - [`@pathlight/sdk`](../packages/sdk) — TypeScript SDK
+- [`pathlight`](../packages/sdk-python) — Python SDK
 - [`@pathlight/eval`](../packages/eval) — assertion DSL + CI runner
 - [`@pathlight/cli`](../packages/cli) — command-line utilities
 - [Collector](../packages/collector) — Hono API server
