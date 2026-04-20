@@ -165,12 +165,41 @@ function SpanInspector({ span, onClose }: { span: Span; onClose: () => void }) {
 
 interface ReplayMessage { role: string; content: string }
 
+// Multimodal payloads ship `content` as an array of parts ({type:"text", text:"…"},
+// {type:"image_url", ...}). Our editor is text-only, so collapse parts to a string
+// and preserve anything non-textual as a pretty-printed JSON sentinel.
+function messageContentToString(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    return raw
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") {
+          const p = part as Record<string, unknown>;
+          if (typeof p.text === "string") return p.text;
+          if (typeof p.content === "string") return p.content;
+        }
+        return JSON.stringify(part);
+      })
+      .join("\n");
+  }
+  if (raw == null) return "";
+  return JSON.stringify(raw, null, 2);
+}
+
 function extractMessages(span: Span): { messages: ReplayMessage[]; system?: string } {
   const parsed = parseJson(span.input);
   if (parsed && typeof parsed === "object" && "messages" in parsed && Array.isArray((parsed as { messages: unknown }).messages)) {
-    const p = parsed as { messages: ReplayMessage[]; system?: string };
-    const all = p.messages;
-    const system = p.system || (all[0]?.role === "system" ? String(all[0].content) : undefined);
+    const p = parsed as { messages: Array<{ role: string; content: unknown }>; system?: unknown };
+    const all = p.messages.map((m) => ({
+      role: String(m.role ?? "user"),
+      content: messageContentToString(m.content),
+    }));
+    const system = typeof p.system === "string"
+      ? p.system
+      : all[0]?.role === "system"
+        ? all[0].content
+        : undefined;
     const messages = all[0]?.role === "system" ? all.slice(1) : all;
     return { messages, system };
   }
@@ -288,7 +317,7 @@ function ReplayPanel({ span }: { span: Span }) {
             <textarea
               value={m.content}
               onChange={(e) => setMessages(messages.map((mm, idx) => (idx === i ? { ...mm, content: e.target.value } : mm)))}
-              rows={Math.min(8, Math.max(2, m.content.split("\n").length))}
+              rows={Math.min(8, Math.max(2, (typeof m.content === "string" ? m.content : "").split("\n").length))}
               className="w-full bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 border-t border-zinc-700 focus:outline-none"
             />
           </div>
