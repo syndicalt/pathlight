@@ -121,17 +121,9 @@ function TracesPageInner() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Traces</h1>
-          <p className="text-sm text-zinc-500 mt-1">{total} total trace{total !== 1 ? "s" : ""}</p>
-        </div>
-        <Link
-          href="/commits"
-          className="text-xs px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100 transition-colors"
-        >
-          Commits →
-        </Link>
+      <div>
+        <h1 className="text-2xl font-bold">Traces</h1>
+        <p className="text-sm text-zinc-500 mt-1">{total} total trace{total !== 1 ? "s" : ""}</p>
       </div>
 
       <div className="flex items-center gap-3">
