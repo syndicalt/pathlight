@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.7
+#
+# Pathlight dashboard runtime image.
+#
+# Leverages Next.js 15 standalone output so the runtime image can skip the
+# monorepo and ship only the self-contained server bundle Next emits.
+
+# ---------- Stage 1: deps ----------
+FROM node:22-slim AS deps
+WORKDIR /app
+
+COPY package.json package-lock.json turbo.json ./
+COPY packages/collector/package.json ./packages/collector/
+COPY packages/db/package.json ./packages/db/
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/eval/package.json ./packages/eval/
+COPY packages/cli/package.json ./packages/cli/
+COPY apps/web/package.json ./apps/web/
+
+RUN npm ci --ignore-scripts
+
+# ---------- Stage 2: build ----------
+FROM node:22-slim AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
+
+COPY apps/web ./apps/web
+
+ARG NEXT_PUBLIC_COLLECTOR_URL=http://localhost:4100
+ENV NEXT_PUBLIC_COLLECTOR_URL=${NEXT_PUBLIC_COLLECTOR_URL}
+
+RUN npx turbo build --filter=@pathlight/web
+
+# ---------- Stage 3: runtime ----------
+FROM node:22-slim AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3100
+ENV HOSTNAME=0.0.0.0
+
+# Next.js standalone output is a self-contained mini-monorepo tree rooted
+# at .next/standalone, plus the public/ and static asset directories.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
+
+EXPOSE 3100
+
+CMD ["node", "apps/web/server.js"]

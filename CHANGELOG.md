@@ -2,6 +2,22 @@
 
 All notable changes to Pathlight. Dates are release days, not merge days.
 
+## Unreleased
+
+### Added — Docker Compose + prebuilt GHCR images
+- `docker compose up -d` starts collector + dashboard with a named SQLite
+  volume; migrations run automatically on first boot.
+- Two multi-stage Dockerfiles (`Dockerfile.collector`, `Dockerfile.web`)
+  at the repo root. Web image uses Next.js 15 standalone output.
+- GitHub Actions workflow publishes tagged + `:latest` images to
+  `ghcr.io/syndicalt/pathlight-{collector,web}` on every push to master.
+
+### Fixed
+- `@pathlight/db` now ships a proper compiled build (`main` was pointing
+  at `src/index.ts` which only worked under `tsx`; production `node`
+  couldn't load it). The package builds to `dist/` like the other
+  workspaces do.
+
 ## 0.2.0 — 2026-04-20
 
 First tagged release since 0.1.0. Adds real-time streaming, trace diff,

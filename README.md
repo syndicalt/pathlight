@@ -37,6 +37,23 @@ Full chronological list in [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick start
 
+### Docker (recommended)
+
+```bash
+git clone https://github.com/syndicalt/pathlight.git
+cd pathlight
+docker compose up -d
+```
+
+That's it. Dashboard at <http://localhost:3100>, collector at
+<http://localhost:4100>. Trace data lives in the `pathlight_data` named
+volume — survives restarts; `docker compose down -v` wipes it.
+
+Prebuilt images are published to GHCR so the first `up` pulls rather
+than builds.
+
+### Local dev (if you want to hack on Pathlight itself)
+
 ```bash
 git clone https://github.com/syndicalt/pathlight.git
 cd pathlight

@@ -1,0 +1,57 @@
+# Pathlight — self-hosted agent observability.
+#
+# Quick start:
+#   docker compose up -d
+#   Dashboard:  http://localhost:3100
+#   Collector:  http://localhost:4100
+#
+# Data is persisted in the named `pathlight_data` volume. Remove the volume
+# to start fresh: `docker compose down -v`.
+#
+# On first run, `docker compose up` will pull prebuilt images from GHCR if
+# available, otherwise it builds locally (takes ~2 min first time).
+
+services:
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.collector
+    image: ghcr.io/syndicalt/pathlight-collector:latest
+    container_name: pathlight-collector
+    ports:
+      - "4100:4100"
+    volumes:
+      - pathlight_data:/data
+    environment:
+      - DATABASE_URL=file:/data/pathlight.db
+      - PORT=4100
+      # Optional: set these to enable LLM-span replay from the dashboard.
+      # - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4100/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      # NEXT_PUBLIC_* is baked in at build time. The default targets the
+      # host-mapped collector port, which Just Works for most users.
+      args:
+        NEXT_PUBLIC_COLLECTOR_URL: ${NEXT_PUBLIC_COLLECTOR_URL:-http://localhost:4100}
+    image: ghcr.io/syndicalt/pathlight-web:latest
+    container_name: pathlight-web
+    ports:
+      - "3100:3100"
+    depends_on:
+      collector:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pathlight_data:

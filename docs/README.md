@@ -19,6 +19,7 @@ start, see [../README.md](../README.md).
 - [OpenTelemetry interop](opentelemetry.md) — OTLP/HTTP ingest, gen_ai
   semantic conventions, attribute mapping
 - [Python SDK](python.md) — mirror of the TS SDK with Pythonic idioms
+- [Docker deployment](docker.md) — one-command self-hosted setup
 
 ## By package
 

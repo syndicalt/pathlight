@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1.7
+#
+# Pathlight collector runtime image.
+#
+# Multi-stage: builder installs workspace deps + runs tsc for the collector
+# and its @pathlight/db workspace dependency; final stage copies only the
+# built JS + the migrations + runtime node_modules, leaving TypeScript
+# tooling out.
+#
+# Build context is the monorepo root so npm workspaces resolve cleanly.
+
+# ---------- Stage 1: deps ----------
+FROM node:22-slim AS deps
+WORKDIR /app
+
+# Copy only package manifests for a cacheable npm ci. Workspaces that the
+# collector doesn't need (sdk, eval, cli, web) are included here because
+# npm ci walks the workspace graph, but their install cost is low.
+COPY package.json package-lock.json turbo.json ./
+COPY packages/collector/package.json ./packages/collector/
+COPY packages/db/package.json ./packages/db/
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/eval/package.json ./packages/eval/
+COPY packages/cli/package.json ./packages/cli/
+COPY apps/web/package.json ./apps/web/
+
+RUN npm ci --ignore-scripts
+
+# ---------- Stage 2: build ----------
+FROM node:22-slim AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
+
+# Copy source for only the workspaces the collector touches. db is a
+# workspace dep; web / sdk / eval / cli are not required.
+COPY packages/db ./packages/db
+COPY packages/collector ./packages/collector
+
+RUN npx turbo build --filter=@pathlight/collector
+
+# ---------- Stage 3: runtime ----------
+FROM node:22-slim AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV DATABASE_URL=file:/data/pathlight.db
+ENV PORT=4100
+
+# Runtime needs node_modules (with workspace symlinks), the built collector
+# JS, the built db package, and the raw Drizzle migrations.
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/packages/collector/package.json ./packages/collector/
+COPY --from=builder /app/packages/collector/dist ./packages/collector/dist
+COPY --from=builder /app/packages/db/package.json ./packages/db/
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
+COPY --from=builder /app/packages/db/drizzle ./packages/db/drizzle
+
+# SQLite file lives on a mounted volume so data survives container restarts.
+VOLUME ["/data"]
+
+EXPOSE 4100
+
+# The collector runs its own migrations on startup (see packages/collector/src/index.ts),
+# so the container is ready the moment /health returns 200.
+CMD ["node", "packages/collector/dist/index.js"]
