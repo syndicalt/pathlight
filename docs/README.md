@@ -16,6 +16,8 @@ start, see [../README.md](../README.md).
   traces, `pathlight-eval` runner
 - [Sharing traces](share.md) — single-file HTML snapshots via
   `pathlight share`
+- [OpenTelemetry interop](opentelemetry.md) — OTLP/HTTP ingest, gen_ai
+  semantic conventions, attribute mapping
 
 ## By package
 

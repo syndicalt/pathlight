@@ -6,6 +6,7 @@ import { createSpanRoutes } from "./routes/spans.js";
 import { createProjectRoutes } from "./routes/projects.js";
 import { createBreakpointRoutes } from "./routes/breakpoints.js";
 import { createReplayRoutes } from "./routes/replay.js";
+import { createOtlpRoutes } from "./routes/otlp.js";
 
 interface RouterContext {
   db: Db;
@@ -26,6 +27,7 @@ export async function createRouter(ctx: RouterContext) {
   app.route("/v1/projects", createProjectRoutes(ctx.db));
   app.route("/v1/breakpoints", createBreakpointRoutes());
   app.route("/v1/replay", createReplayRoutes());
+  app.route("/v1/otlp", createOtlpRoutes(ctx.db));
 
   // Health check
   app.get("/health", (c) => c.json({ status: "ok", service: "pathlight-collector" }));

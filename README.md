@@ -26,6 +26,7 @@ No more debugging agents with `console.log`.
 | **LLM replay** | Edit messages on any LLM span and re-run against the real provider | [docs/replay.md](docs/replay.md) |
 | **Eval-as-code + CI** | `expect(trace).toCostLessThan(0.10)` — assert over recent traces, exit nonzero in CI | [packages/eval/README.md](packages/eval/README.md) |
 | **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
+| **OpenTelemetry interop** | Collector accepts OTLP/HTTP; any OTel-instrumented app can ship to Pathlight | [docs/opentelemetry.md](docs/opentelemetry.md) |
 | **Automatic source mapping** | Every span records the file:line where it was created | [overview](#automatic-source-mapping) |
 | **Issue detection** | Failed spans + error-pattern matches flag traces in the list | [overview](#issue-detection) |
 
@@ -267,6 +268,12 @@ pathlight/
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/v1/replay/llm` | POST | Proxy LLM call. Body: `{ provider, model, messages, system?, apiKey?, baseUrl?, temperature?, maxTokens? }` |
+
+### OpenTelemetry ingest
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/otlp/traces` | POST | OTLP/HTTP JSON ingest. Accepts `resourceSpans[...]`. Maps `gen_ai.*` attributes to Pathlight fields. See [OTel docs](docs/opentelemetry.md). |
 
 ### Projects
 
