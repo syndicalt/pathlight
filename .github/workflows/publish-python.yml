@@ -9,9 +9,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
     defaults:
       run:
         working-directory: packages/sdk-python
@@ -32,3 +29,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/sdk-python/dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
