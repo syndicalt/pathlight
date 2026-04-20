@@ -191,7 +191,182 @@ function SpanInspector({ span, onClose }: { span: Span; onClose: () => void }) {
         <JsonBlock data={parseJson(span.toolArgs)} label="Tool Arguments" />
         <JsonBlock data={parseJson(span.toolResult)} label="Tool Result" />
         <JsonBlock data={parseJson(span.metadata)} label="Metadata" />
+
+        {span.type === "llm" && <ReplayPanel span={span} />}
       </div>
+    </div>
+  );
+}
+
+interface ReplayMessage { role: string; content: string }
+
+function extractMessages(span: Span): { messages: ReplayMessage[]; system?: string } {
+  const parsed = parseJson(span.input);
+  if (parsed && typeof parsed === "object" && "messages" in parsed && Array.isArray((parsed as { messages: unknown }).messages)) {
+    const p = parsed as { messages: ReplayMessage[]; system?: string };
+    const all = p.messages;
+    const system = p.system || (all[0]?.role === "system" ? String(all[0].content) : undefined);
+    const messages = all[0]?.role === "system" ? all.slice(1) : all;
+    return { messages, system };
+  }
+  // Fall back: treat input as a single user message
+  const content = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+  return { messages: [{ role: "user", content }] };
+}
+
+function ReplayPanel({ span }: { span: Span }) {
+  const initial = extractMessages(span);
+  const [messages, setMessages] = useState<ReplayMessage[]>(initial.messages);
+  const [system, setSystem] = useState<string>(initial.system ?? "");
+  const [model, setModel] = useState(span.model ?? "");
+  const [apiKey, setApiKey] = useState<string>("");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ output: string; durationMs: number; tokens?: string; error?: string } | null>(null);
+
+  const COLLECTOR_URL = process.env.NEXT_PUBLIC_COLLECTOR_URL || "http://localhost:4100";
+
+  useEffect(() => {
+    // Load stored API key if present (scoped per provider).
+    const provider = (span.provider || "openai").toLowerCase();
+    const stored = typeof window !== "undefined" ? localStorage.getItem(`pathlight:replay-key:${provider}`) : null;
+    if (stored) setApiKey(stored);
+  }, [span.provider]);
+
+  // Keep the editor fresh when jumping between spans.
+  useEffect(() => {
+    const next = extractMessages(span);
+    setMessages(next.messages);
+    setSystem(next.system ?? "");
+    setModel(span.model ?? "");
+    setResult(null);
+  }, [span.id, span.model]);
+
+  const provider = (span.provider || "openai").toLowerCase();
+
+  const run = async () => {
+    if (apiKey) {
+      localStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
+    }
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await fetch(`${COLLECTOR_URL}/v1/replay/llm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          model,
+          system: system || undefined,
+          messages,
+          apiKey: apiKey || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult({ output: "", durationMs: 0, error: JSON.stringify(data.error || data, null, 2) });
+      } else {
+        setResult({
+          output: data.output || "",
+          durationMs: data.durationMs || 0,
+          tokens: data.inputTokens ? `${data.inputTokens}/${data.outputTokens || 0}` : undefined,
+        });
+      }
+    } catch (err) {
+      setResult({ output: "", durationMs: 0, error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="pt-4 border-t border-zinc-800">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Replay</p>
+        <span className="text-[10px] text-zinc-600">{provider}</span>
+      </div>
+
+      <div className="space-y-2">
+        <input
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder="model"
+          className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-200"
+        />
+        {system !== undefined && (
+          <textarea
+            value={system}
+            onChange={(e) => setSystem(e.target.value)}
+            placeholder="system prompt (optional)"
+            rows={2}
+            className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-300"
+          />
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className="border border-zinc-700 rounded">
+            <div className="flex items-center justify-between px-2 py-1 bg-zinc-800/50">
+              <select
+                value={m.role}
+                onChange={(e) => setMessages(messages.map((mm, idx) => (idx === i ? { ...mm, role: e.target.value } : mm)))}
+                className="bg-zinc-800 border border-zinc-700 rounded text-[10px] px-1 py-0.5 text-zinc-300"
+              >
+                <option value="user">user</option>
+                <option value="assistant">assistant</option>
+                <option value="system">system</option>
+              </select>
+              <button
+                onClick={() => setMessages(messages.filter((_, idx) => idx !== i))}
+                className="text-[10px] text-zinc-500 hover:text-red-400"
+              >
+                remove
+              </button>
+            </div>
+            <textarea
+              value={m.content}
+              onChange={(e) => setMessages(messages.map((mm, idx) => (idx === i ? { ...mm, content: e.target.value } : mm)))}
+              rows={Math.min(8, Math.max(2, m.content.split("\n").length))}
+              className="w-full bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 border-t border-zinc-700 focus:outline-none"
+            />
+          </div>
+        ))}
+        <button
+          onClick={() => setMessages([...messages, { role: "user", content: "" }])}
+          className="text-[10px] text-zinc-500 hover:text-zinc-300"
+        >
+          + add message
+        </button>
+
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={`${provider} api key (saved locally; collector env var also works)`}
+          className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-200"
+        />
+
+        <button
+          onClick={run}
+          disabled={running || !model}
+          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-xs font-medium px-3 py-2 rounded transition-colors"
+        >
+          {running ? "Running…" : "Run replay"}
+        </button>
+      </div>
+
+      {result && (
+        <div className="mt-3 space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-zinc-600 uppercase tracking-widest">
+            <span>Replay output</span>
+            <span>
+              {result.durationMs}ms{result.tokens ? ` · ${result.tokens} tok` : ""}
+            </span>
+          </div>
+          {result.error ? (
+            <pre className="bg-red-950/40 border border-red-800/50 rounded p-2 text-[11px] text-red-300 whitespace-pre-wrap max-h-40 overflow-y-auto">{result.error}</pre>
+          ) : (
+            <pre className="bg-zinc-800/50 border border-zinc-700/50 rounded p-2 text-[11px] text-zinc-200 whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">{result.output}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
