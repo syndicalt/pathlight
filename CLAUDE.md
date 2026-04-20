@@ -2,14 +2,29 @@
 
 Visual debugging, execution traces, and observability for AI agents.
 
+See `README.md` for the user-facing overview, `CHANGELOG.md` for a
+feature-by-feature history, and `docs/` for per-feature deep-dives.
+
 ## Architecture
 
 Turborepo monorepo with npm workspaces:
 
-- `packages/collector` — Hono-based trace collector API on port 4100. Receives traces, spans, and events from the SDK.
-- `packages/db` — Drizzle ORM + SQLite. Schema: traces, spans, events, projects, scores.
-- `packages/sdk` — TypeScript SDK for instrumenting agents. Sends trace data to the collector.
-- `apps/web` — Next.js + Tailwind CSS dashboard for viewing and debugging traces.
+- `packages/collector` — Hono-based trace collector API on port 4100.
+  Receives traces/spans/events, serves SSE streams, proxies LLM replays,
+  hosts the in-memory breakpoint registry.
+- `packages/db` — Drizzle ORM + SQLite. Schema: traces, spans, events,
+  projects, scores. Traces carry `git_commit`/`git_branch`/`git_dirty` and
+  `reviewed_at`.
+- `packages/sdk` — TypeScript SDK for instrumenting agents. Auto-captures
+  source locations + git context. Exposes `tl.breakpoint()` for live
+  debugging.
+- `packages/eval` — `@pathlight/eval` assertion DSL and `pathlight-eval`
+  CI runner.
+- `packages/cli` — `@pathlight/cli` with `pathlight share` subcommand for
+  exporting single-file HTML trace snapshots.
+- `apps/web` — Next.js + Tailwind dashboard (port 3100). Routes: `/`
+  (list), `/traces/[id]` (detail + side-by-side inspector), `/traces/compare`
+  (diff), `/commits` (regression view).
 
 ## Commands
 
@@ -18,24 +33,32 @@ npx turbo dev               # Start collector + web concurrently
 npm run dev -w packages/collector   # Collector only (port 4100)
 npm run dev -w apps/web             # Web UI only (port 3100)
 
-# Database
-npm run db:generate -w packages/db   # Generate Drizzle migrations
-npm run db:migrate -w packages/db    # Run migrations
-npm run db:studio -w packages/db     # Open Drizzle Studio
-npm run db:retire -w packages/db                          # Archive default database
-npm run db:retire -w packages/db -- ../collector/pathlight.db  # Archive specific database
-npm run db:retire -w packages/db -- --delete              # Permanently delete instead
+# Database (the collector's DB is at packages/collector/pathlight.db)
+npm run db:generate -w packages/db
+DATABASE_URL="file:$(pwd)/packages/collector/pathlight.db" \
+  npm run db:migrate -w packages/db
+npm run db:studio -w packages/db
+npm run db:retire -w packages/db                          # Archive default DB
+npm run db:retire -w packages/db -- ../collector/pathlight.db  # Archive specific
+npm run db:retire -w packages/db -- --delete              # Delete instead
+
+# CLIs
+pathlight share <trace-id> --out ./snapshot.html
+pathlight-eval specs/estimate.mjs --base-url http://localhost:4100
 ```
 
-## Key Data Model
+## Key data model
 
-- **Trace** — A complete agent execution (one run). Has status, input/output, duration, total tokens/cost.
-- **Span** — A single step within a trace (LLM call, tool use, decision). Supports nesting via parentSpanId. Types: llm, tool, retrieval, agent, chain, custom.
-- **Event** — Point-in-time annotation within a span (logs, decisions, errors). Has severity levels.
-- **Score** — Quality annotation on a trace or span (human or auto-generated).
-- **Project** — Groups traces. Has an API key for SDK authentication.
+- **Trace** — A complete agent execution. Status, input/output, duration,
+  tokens, cost, git provenance, `reviewedAt`.
+- **Span** — A single step. Types: llm, tool, retrieval, agent, chain,
+  custom. Nests via `parentSpanId`.
+- **Event** — Point-in-time annotation within a span (logs, decisions,
+  errors).
+- **Score** — Quality annotation on a trace or span.
+- **Project** — Groups traces; has an API key for SDK auth.
 
-## SDK Usage
+## SDK usage
 
 ```typescript
 import { Pathlight } from "@pathlight/sdk";
@@ -47,4 +70,25 @@ const span = trace.span("llm.chat", "llm", { model: "gpt-4o" });
 // ... do work ...
 span.end({ output: result, inputTokens: 100, outputTokens: 200 });
 trace.end({ output: finalResult });
+
+// Pause mid-run; dashboard resumes with optional state override.
+const state = await tl.breakpoint({ label: "checkpoint", state: { foo } });
 ```
+
+## Notable UI conventions
+
+- **Top nav** (`apps/web/src/components/TopNav.tsx`) — sticky horizontal
+  header with logo, version, right-aligned page links. Replaces the old
+  fixed left sidebar.
+- **Span inspector** — side-by-side with the timeline when a span is
+  selected. Timeline narrows to `0.8fr`; inspector takes `1.2fr` and is
+  sticky.
+- **Breakpoints panel** (`BreakpointsPanel.tsx`) — globally mounted in
+  `layout.tsx`. Auto-opens on new breakpoint arrival.
+
+## Conventions
+
+- Commit messages use `feat(#N):` / `fix(#N):` / `refactor(web):` style.
+- Shiplog workflow: each feature gets an `issue/N-slug` branch and PR.
+- Keep the collector DB migrated (`DATABASE_URL` must point at
+  `packages/collector/pathlight.db` for CLI migrations).

@@ -2,45 +2,57 @@
 
 Visual debugging, execution traces, and observability for AI agents.
 
-When your AI agent makes a bad decision at step 7 of a 12-step workflow, Pathlight shows you exactly what happened — what went in, what came out, how long it took, and where in your code it was called. No more debugging agents with `console.log`.
+When your AI agent makes a bad decision at step 7 of a 12-step workflow,
+Pathlight shows you exactly what happened — what went in, what came out, how
+long it took, and where in your code it was called. Then it lets you *edit*
+that step's prompt and re-run it against the real model, diff two runs
+side-by-side, pause the agent mid-execution, or block a PR when latency
+regresses.
 
-## Features
+No more debugging agents with `console.log`.
 
-- **Waterfall Timeline** — See every step of your agent's execution as a visual timeline with proportional duration bars. LLM calls, tool invocations, retrieval steps — all in one view.
-- **Span Inspector** — Click any step to see full inputs, outputs, token counts, model used, and cost. JSON data is formatted and expandable.
-- **Automatic Source Mapping** — The SDK captures the exact file, line number, and function name where each span was created. Zero configuration required.
-- **Issue Detection** — Spans with failures, errors, or problems are automatically flagged with amber highlights. Traces with issues are marked in the list view so you can spot problems at a glance.
-- **Framework Agnostic** — Works with any AI agent, any LLM provider, any framework. Not tied to LangChain, CrewAI, or any specific tool.
-- **Self-Hosted** — Your trace data stays on your infrastructure. SQLite database, Docker deploy, no external dependencies.
+---
 
-## Quick Start
+## Feature tour
+
+| Feature | Why you'd use it | Docs |
+| --- | --- | --- |
+| **Waterfall timeline** | Visual answer to "where is the time going?" | [overview](#waterfall-timeline) |
+| **Span inspector** | Full input/output/metadata on click, side-by-side with timeline | [overview](#span-inspector) |
+| **Real-time stream** | New traces and status changes land without refresh | [docs/realtime.md](docs/realtime.md) |
+| **Trace diff** | Side-by-side compare of two traces; "did my prompt change break anything?" | [docs/trace-diff.md](docs/trace-diff.md) |
+| **Git-linked regressions** | SDK auto-captures commit SHA; `/commits` page flags >25% cost/latency regressions | [docs/git-regressions.md](docs/git-regressions.md) |
+| **Live breakpoints** | `await tl.breakpoint(...)` pauses your agent; edit state on the dashboard and resume | [docs/breakpoints.md](docs/breakpoints.md) |
+| **LLM replay** | Edit messages on any LLM span and re-run against the real provider | [docs/replay.md](docs/replay.md) |
+| **Eval-as-code + CI** | `expect(trace).toCostLessThan(0.10)` — assert over recent traces, exit nonzero in CI | [packages/eval/README.md](packages/eval/README.md) |
+| **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
+| **Automatic source mapping** | Every span records the file:line where it was created | [overview](#automatic-source-mapping) |
+| **Issue detection** | Failed spans + error-pattern matches flag traces in the list | [overview](#issue-detection) |
+
+Full chronological list in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## Quick start
 
 ```bash
 git clone https://github.com/syndicalt/pathlight.git
 cd pathlight
-
 npm install
 
-# Generate and run database migrations
+# Generate and apply database migrations
 npm run db:generate -w packages/db
-npm run db:migrate -w packages/db
+DATABASE_URL="file:$(pwd)/packages/collector/pathlight.db" \
+  npm run db:migrate -w packages/db
 
-# Start everything (collector + dashboard)
+# Start collector (4100) + dashboard (3100) together
 npx turbo dev
-
-# Archive database to start fresh (renames to .archived-<timestamp>.db)
-npm run db:retire -w packages/db -- ../collector/pathlight.db
-
-# Or permanently delete it
-npm run db:retire -w packages/db -- --delete ../collector/pathlight.db
 ```
 
-- **Collector**: http://localhost:4100 (receives trace data from your agent)
-- **Dashboard**: http://localhost:3100 (view and debug traces)
+- **Collector**: <http://localhost:4100> — receives trace data from your agent
+- **Dashboard**: <http://localhost:3100> — view, debug, diff, replay
 
-## Instrument Your Agent
-
-Add a few lines to your agent code. The SDK handles the rest.
+### Instrument your agent
 
 ```bash
 npm install @pathlight/sdk
@@ -49,138 +61,242 @@ npm install @pathlight/sdk
 ```typescript
 import { Pathlight } from "@pathlight/sdk";
 
-const tl = new Pathlight({
-  baseUrl: "http://localhost:4100",
-});
+const tl = new Pathlight({ baseUrl: "http://localhost:4100" });
 
-// Start a trace for an agent run
 const trace = tl.trace("research-agent", { query: "What is WebAssembly?" });
 
-// Wrap each step in a span
-const classifySpan = trace.span("classify", "llm", {
-  input: { prompt: "Classify this query..." },
-});
-const result = await llm.chat("Classify this query...");
-await classifySpan.end({
-  output: result,
-  inputTokens: 50,
-  outputTokens: 10,
-});
+// Each step is a span
+const llm = trace.span("classify", "llm", { model: "gpt-4o" });
+const result = await openai.chat(/* … */);
+await llm.end({ output: result, inputTokens: 50, outputTokens: 10 });
 
-// Tool calls
-const searchSpan = trace.span("web-search", "tool", {
-  toolName: "search",
-  toolArgs: { query: "WebAssembly" },
-});
-const results = await searchTool("WebAssembly");
-await searchSpan.end({ toolResult: results });
+const search = trace.span("web-search", "tool", { toolName: "search" });
+const results = await searchTool(result.query);
+await search.end({ toolResult: results });
 
-// End the trace
 await trace.end({ output: finalAnswer });
 ```
 
-That's it. Open http://localhost:3100 and you'll see the full execution timeline.
+That's it. Open the dashboard and every trace appears in real time with full
+waterfall, source locations, token counts, and git provenance.
 
-## Span Types
+---
 
-| Type | Color | Use For |
-|------|-------|---------|
+## Workflow playbooks
+
+### "Did my prompt change regress anything?"
+1. Open the trace list. Commit badge on each row shows which SHA produced it.
+2. Pick the last good run and your new run; click **Compare**.
+3. See per-span duration delta, input/output JSON diff, and new/missing spans.
+
+### "Can I stop this agent mid-flight and tweak its state?"
+1. Drop `state = await tl.breakpoint({ label: "post-retrieval", state: { docs, query } })`.
+2. Run the agent. When execution reaches the breakpoint, the dashboard's
+   floating pulse badge lights up.
+3. Edit the JSON state, click **Resume with edits** — your agent continues
+   with the modified value.
+
+### "Let me tune this prompt without leaving the dashboard."
+1. Open a trace detail, click any LLM span.
+2. Edit the system prompt, messages, or model right in the inspector.
+3. Enter your provider API key (saved in `localStorage` per-provider) and
+   click **Run replay**.
+
+### "Don't let a merge ship a cost regression."
+1. Write `specs/estimate.mjs` with `expect(trace).toCostLessThan(0.05)` etc.
+2. Add a GitHub Actions step: `npx pathlight-eval specs/estimate.mjs --base-url …`.
+3. Merge gate fails when any trace violates the assertion.
+
+### "Send this weird run to a teammate."
+1. `pathlight share <trace-id> --out /tmp/bad-run.html`
+2. Attach the HTML to your GitHub issue / Slack thread. They open it in any
+   browser — no dashboard, no server, no dependencies.
+
+---
+
+## What you see
+
+### Trace list
+
+All agent runs at a glance. Status, duration, tokens, tags, commit badge.
+Unreviewed runs get a subtle left accent. Real-time — new traces and status
+updates appear without refresh. Multi-select two rows to compare.
+
+### Waterfall timeline
+
+Every span as a proportional bar showing when it started and how long it
+took relative to the total trace. Sequential steps cascade down. Issue spans
+get an amber highlight. Clicking a span splits the view: timeline shrinks
+left, inspector fills the right.
+
+### Span inspector
+
+Side-by-side with the timeline. Shows:
+- Status, duration, model, provider, tokens
+- **Source location** — file:line automatically captured from the call stack
+- Input / output / tool args / tool result / metadata (formatted JSON)
+- Error details
+- For **LLM spans**: full replay editor — edit messages and re-run
+
+### `/commits` regression view
+
+Groups recent traces by commit SHA. Per-commit aggregates (trace count, avg
+duration/tokens/cost, failure count) with deltas vs. the previous commit.
+Rows where a metric got ≥25% worse are tinted red so regressions can't hide.
+
+### Breakpoints panel
+
+Floating amber pulse badge appears the moment any agent hits a breakpoint.
+Click it to open a per-breakpoint editor: label, trace link, live JSON state
+editor, Resume / Resume with edits / Cancel.
+
+---
+
+## Span types
+
+| Type | Color | Use for |
+| --- | --- | --- |
 | `llm` | Blue | LLM API calls (chat completions, embeddings) |
-| `tool` | Green | Tool invocations (search, code execution, API calls) |
-| `retrieval` | Violet | RAG retrieval, document fetching, knowledge base lookups |
+| `tool` | Green | Tool invocations (search, code exec, API calls) |
+| `retrieval` | Violet | RAG retrieval, document fetches, knowledge base lookups |
 | `agent` | Orange | Sub-agent invocations, delegation |
 | `chain` | Cyan | Chain/pipeline steps, sequential processing |
 | `custom` | Gray | Anything else |
 
-## What You See
-
-### Trace List
-
-All agent runs at a glance. Status indicators (running/completed/failed), duration, token count, and tags. Traces with issues are flagged with an amber warning badge.
-
-![Trace List](public/trace_list.png)
-
-### Waterfall Timeline
-
-Every span visualized as a proportional bar showing when it started and how long it took relative to the total trace. Sequential steps cascade down like a waterfall. Issue spans are highlighted in amber.
-
-![Waterfall Timeline](public/trace_detail.png)
-
-### Span Inspector
-
-Click any span to open the slide-in panel showing:
-
-- **Status and duration**
-- **Model and provider** (for LLM spans)
-- **Token counts** (input/output)
-- **Source location** — file:line automatically captured from the call stack
-- **Input/Output** — formatted JSON
-- **Tool arguments and results**
-- **Errors**
-
-![Span Inspector](public/execution_detail.png)
+---
 
 ## Architecture
 
 ```
 pathlight/
-├── packages/
-│   ├── collector/    # Hono-based API (port 4100)
-│   │   └── src/
-│   │       ├── routes/    # REST endpoints for traces, spans, events
-│   │       └── router.ts  # CORS, health check, route mounting
-│   ├── db/           # Drizzle ORM + SQLite
-│   │   └── src/
-│   │       └── schema.ts  # traces, spans, events, projects, scores
-│   └── sdk/          # TypeScript SDK
+├── apps/
+│   └── web/              # Next.js 15 dashboard (port 3100)
 │       └── src/
-│           └── index.ts   # Pathlight, Trace, Span classes
-└── apps/
-    └── web/          # Next.js + Tailwind dashboard (port 3100)
-        └── src/app/
-            ├── page.tsx           # Trace list
-            └── traces/[id]/       # Trace detail + timeline
+│           ├── app/
+│           │   ├── page.tsx                # Trace list + real-time stream
+│           │   ├── traces/[id]/page.tsx    # Trace detail, waterfall, inspector
+│           │   ├── traces/compare/page.tsx # Side-by-side trace diff
+│           │   └── commits/page.tsx        # Per-commit regression view
+│           ├── components/
+│           │   ├── TopNav.tsx              # Sticky horizontal nav
+│           │   └── BreakpointsPanel.tsx    # Floating badge + slide-out editor
+│           └── lib/
+│               ├── api.ts                  # Collector fetch helpers
+│               ├── diff.ts                 # LCS line-diff utility
+│               └── format.ts               # Duration / token / timestamp formatters
+├── packages/
+│   ├── collector/        # Hono-based trace collector (port 4100)
+│   │   └── src/
+│   │       ├── routes/
+│   │       │   ├── traces.ts        # CRUD + SSE stream + /commits aggregate
+│   │       │   ├── spans.ts         # Span CRUD
+│   │       │   ├── projects.ts      # Project CRUD
+│   │       │   ├── breakpoints.ts   # Live breakpoint register/wait/resume/SSE
+│   │       │   └── replay.ts        # LLM replay proxy (OpenAI + Anthropic)
+│   │       ├── events.ts            # Trace EventEmitter for SSE fan-out
+│   │       ├── breakpoints.ts       # In-memory breakpoint registry
+│   │       └── router.ts            # CORS + route mounting
+│   ├── db/               # Drizzle ORM + SQLite
+│   │   ├── drizzle/                 # Migrations
+│   │   └── src/
+│   │       ├── schema.ts            # traces, spans, events, projects, scores
+│   │       ├── retire.ts            # db:retire command
+│   │       └── index.ts
+│   ├── sdk/              # TypeScript SDK
+│   │   └── src/index.ts             # Pathlight, Trace, Span, breakpoint()
+│   ├── eval/             # Assertion DSL + pathlight-eval CLI
+│   │   ├── bin/pathlight-eval.js
+│   │   ├── examples/
+│   │   └── src/index.ts             # expect() matchers, evaluate()
+│   └── cli/              # pathlight CLI (subcommand router)
+│       ├── bin/pathlight.js
+│       └── src/
+│           ├── commands/share.ts    # pathlight share <trace-id>
+│           └── viewer-template.ts   # Self-contained HTML viewer
+└── CHANGELOG.md
 ```
 
-## Data Model
+---
+
+## Data model
 
 | Entity | Description |
-|--------|-------------|
-| **Trace** | A complete agent execution. Has status, input/output, total duration, tokens, and cost. |
-| **Span** | A single step within a trace. Supports nesting via `parentSpanId`. Types: llm, tool, retrieval, agent, chain, custom. |
-| **Event** | Point-in-time annotation within a span (logs, decisions, errors). Has severity levels. |
-| **Project** | Groups traces. Has an API key for SDK authentication. |
-| **Score** | Quality annotation on a trace or span (human or auto-generated). |
+| --- | --- |
+| **Trace** | A complete agent execution. Status, input/output, duration, tokens, cost, `git_commit`/`git_branch`/`git_dirty`, `reviewed_at`. |
+| **Span** | A single step within a trace. Types: llm, tool, retrieval, agent, chain, custom. Nests via `parent_span_id`. |
+| **Event** | Point-in-time annotation within a span (logs, decisions, errors). Severity levels. |
+| **Project** | Groups traces; has an API key for SDK auth. |
+| **Score** | Quality annotation on a trace or span (human or auto). |
 
-## API Endpoints
+---
+
+## API reference
+
+### Traces
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/traces` | GET | List traces with filters (status, name, projectId) |
-| `/v1/traces` | POST | Create a new trace |
-| `/v1/traces/:id` | GET | Get trace with all spans, events, and scores |
-| `/v1/traces/:id` | PATCH | Update trace (status, output, duration) |
-| `/v1/traces/:id` | DELETE | Delete trace and all related data |
+| --- | --- | --- |
+| `/v1/traces` | GET | List traces; filter by `status`, `name`, `projectId`; paginate with `limit`, `offset` |
+| `/v1/traces` | POST | Create a trace. Accepts `gitCommit`, `gitBranch`, `gitDirty` |
+| `/v1/traces/stream` | GET | SSE stream of `trace.created` / `trace.updated` / `ping` |
+| `/v1/traces/commits` | GET | Per-commit aggregate stats (see [git-regressions docs](docs/git-regressions.md)) |
+| `/v1/traces/:id` | GET | Get trace with all spans, events, scores |
+| `/v1/traces/:id` | PATCH | Update (status, output, duration, `reviewedAt`) |
+| `/v1/traces/:id` | DELETE | Delete trace and all related rows |
+
+### Spans
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
 | `/v1/spans` | POST | Create a span |
-| `/v1/spans/:id` | PATCH | Update span (status, output, tokens, cost) |
-| `/v1/spans/:id/events` | POST | Log an event within a span |
+| `/v1/spans/:id` | PATCH | Update (status, output, tokens, cost, toolResult) |
+| `/v1/spans/:id/events` | POST | Log an event |
+
+### Breakpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/breakpoints` | POST | Register + block until resumed or timed out (default 15m). Returns `{ state }` |
+| `/v1/breakpoints` | GET | List active breakpoints |
+| `/v1/breakpoints/:id/resume` | POST | Resume with optional `{ state }` override |
+| `/v1/breakpoints/:id/cancel` | POST | Reject the waiting SDK call with 408 |
+| `/v1/breakpoints/stream` | GET | SSE: `snapshot`, `added`, `resolved`, `cancelled`, `ping` |
+
+### Replay
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/replay/llm` | POST | Proxy LLM call. Body: `{ provider, model, messages, system?, apiKey?, baseUrl?, temperature?, maxTokens? }` |
+
+### Projects
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
 | `/v1/projects` | GET | List projects |
 | `/v1/projects` | POST | Create a project (returns API key) |
-| `/health` | GET | Health check |
 
-## SDK Reference
+### Health
 
-### `Pathlight`
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/health` | GET | Liveness probe |
+
+---
+
+## SDK reference
+
+### `new Pathlight(config)`
 
 ```typescript
 const tl = new Pathlight({
-  baseUrl: "http://localhost:4100",  // Collector URL
-  projectId: "my-project",           // Optional project grouping
-  apiKey: "tl_...",                   // Optional authentication
+  baseUrl: "http://localhost:4100",
+  projectId: "my-project",        // optional
+  apiKey: "tl_…",                  // optional
+  disableGitContext: false,        // opt out of auto git capture
 });
 ```
 
-### `Trace`
+### `tl.trace(name, input?, options?)`
 
 ```typescript
 const trace = tl.trace("agent-name", inputData, {
@@ -188,22 +304,20 @@ const trace = tl.trace("agent-name", inputData, {
   metadata: { userId: "123" },
 });
 
-// ... run your agent ...
-
 await trace.end({ output: result });
 // or
-await trace.end({ status: "failed", error: "Something went wrong" });
+await trace.end({ status: "failed", error: "…" });
 ```
 
-### `Span`
+### `trace.span(name, type, options?)`
 
 ```typescript
 const span = trace.span("step-name", "llm", {
   model: "gpt-4o",
   provider: "openai",
-  input: { prompt: "..." },
-  toolName: "search",        // for tool spans
-  toolArgs: { query: "..." }, // for tool spans
+  input: { prompt: "…" },
+  toolName: "search",          // for tool spans
+  toolArgs: { query: "…" },    // for tool spans
 });
 
 await span.end({
@@ -211,31 +325,110 @@ await span.end({
   inputTokens: 100,
   outputTokens: 200,
   cost: 0.003,
-  toolResult: { ... },       // for tool spans
+  toolResult: { …: … },        // for tool spans
 });
 
-// Log events during execution
 await span.event("decision", { choice: "retry" }, "info");
 ```
 
-Source location (file, line, function) is captured automatically when a span is created.
+Source location (file, line, function) is captured automatically.
 
-## Environment Variables
+### `tl.breakpoint(options)`
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `file:pathlight.db` | SQLite or Turso connection URL |
-| `DATABASE_AUTH_TOKEN` | — | Turso auth token (if using Turso) |
+```typescript
+const state = await tl.breakpoint({
+  label: "post-retrieval",
+  state: { docs, query },
+  timeoutMs: 15 * 60_000,   // default: 15 minutes
+});
+// If the dashboard edited `state`, the returned value reflects the edit.
+```
+
+See [docs/breakpoints.md](docs/breakpoints.md).
+
+---
+
+## Automatic source mapping
+
+The SDK walks the stack on every `trace.span(...)` call and captures the
+first frame outside `@pathlight/sdk` and `node_modules`. The file, line,
+column, and function name get stored in `span.metadata._source` and render
+as a clickable breadcrumb in the dashboard.
+
+This means zero instrumentation config — the waterfall always knows exactly
+where in your code each step was created.
+
+---
+
+## Issue detection
+
+The collector enriches every trace list response with per-row issue flags:
+
+- **Span failed** — `span.status === "failed"`
+- **Span error** — `span.error` is set
+- **Suspicious output** — regex matches `\bfail\b`, `failed`, `error`,
+  `exception`, `timeout`, `invalid`, `denied`, `refused`, `rejected`,
+  `incomplete`, `truncat`
+
+Traces with any issue get an amber **Issues detected** badge on the list and
+individual amber-highlighted rows in the waterfall.
+
+---
+
+## Environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:pathlight.db` | SQLite or Turso URL |
+| `DATABASE_AUTH_TOKEN` | — | Turso auth token |
 | `PORT` | `4100` | Collector port |
-| `DASHBOARD_URL` | `http://localhost:3100` | Dashboard URL (for CORS) |
-| `NEXT_PUBLIC_COLLECTOR_URL` | `http://localhost:4100` | Collector URL (browser-side) |
+| `NEXT_PUBLIC_COLLECTOR_URL` | `http://localhost:4100` | Collector URL (browser) |
+| `PATHLIGHT_URL` | `http://localhost:4100` | Collector URL for CLI (`pathlight`, `pathlight-eval`) |
+| `OPENAI_API_KEY` | — | Server-side fallback for `/v1/replay/llm` |
+| `ANTHROPIC_API_KEY` | — | Server-side fallback for `/v1/replay/llm` |
 
-## Tech Stack
+---
 
-- **Collector**: [Hono](https://hono.dev) (lightweight, fast)
-- **Dashboard**: [Next.js](https://nextjs.org) + [Tailwind CSS](https://tailwindcss.com)
-- **Database**: SQLite via [Drizzle ORM](https://orm.drizzle.team)
-- **Monorepo**: [Turborepo](https://turbo.build)
+## Commands
+
+```bash
+# Workspace-level
+npx turbo dev                          # Collector + web together
+npx turbo build                        # Build all packages
+npm run dev -w packages/collector      # Collector only (4100)
+npm run dev -w apps/web                # Web only (3100)
+
+# Database
+npm run db:generate -w packages/db                 # Generate Drizzle migration
+DATABASE_URL="file:$(pwd)/packages/collector/pathlight.db" \
+  npm run db:migrate -w packages/db               # Apply migrations
+npm run db:studio -w packages/db                   # Open Drizzle Studio
+npm run db:retire -w packages/db -- ../collector/pathlight.db  # Archive
+npm run db:retire -w packages/db -- --delete ../collector/pathlight.db  # Delete
+
+# CLIs (after install)
+pathlight share <trace-id> --out report.html
+pathlight-eval specs/my-checks.mjs --base-url http://localhost:4100
+```
+
+---
+
+## Tech stack
+
+- **Collector**: [Hono](https://hono.dev) — lightweight, fast
+- **Dashboard**: [Next.js 15](https://nextjs.org) + [Tailwind CSS](https://tailwindcss.com)
+- **Database**: SQLite via [Drizzle ORM](https://orm.drizzle.team) (libSQL-compatible; Turso-ready)
+- **Monorepo**: [Turborepo](https://turbo.build) + npm workspaces
+- **Streaming**: Server-sent events (native `EventSource` + `hono/streaming`)
+
+---
+
+## Self-hosted philosophy
+
+Everything runs locally by default. SQLite file, single collector process,
+no external services required. API keys (for replay) read from env vars or
+stay in the browser's `localStorage` — never sent to any third-party beyond
+the LLM provider itself.
 
 ## License
 

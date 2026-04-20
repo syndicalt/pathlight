@@ -13,11 +13,12 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur border-b border-zinc-800">
-      <div className="max-w-7xl mx-auto px-6 h-12 flex items-center gap-6">
+      <div className="max-w-7xl mx-auto px-6 h-12 flex items-center gap-4">
         <Link href="/" className="text-base font-bold tracking-tight shrink-0">
           <span className="text-blue-400">Path</span>light
         </Link>
-        <nav className="flex items-center gap-1">
+        <span className="text-[10px] text-zinc-600 shrink-0">v0.1.0</span>
+        <nav className="ml-auto flex items-center gap-1">
           {LINKS.map((l) => {
             const active = l.match(pathname);
             return (
@@ -35,7 +36,6 @@ export function TopNav() {
             );
           })}
         </nav>
-        <span className="ml-auto text-[10px] text-zinc-600 shrink-0">v0.1.0</span>
       </div>
     </header>
   );
