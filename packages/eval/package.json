@@ -1,0 +1,38 @@
+{
+  "name": "@pathlight/eval",
+  "version": "0.1.0",
+  "description": "Assertion DSL and CI runner for Pathlight traces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "pathlight-eval": "./bin/pathlight-eval.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["ai", "agent", "eval", "assert", "testing", "ci"],
+  "author": "Nicholas Blanchard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syndicalt/pathlight.git",
+    "directory": "packages/eval"
+  },
+  "homepage": "https://github.com/syndicalt/pathlight",
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
