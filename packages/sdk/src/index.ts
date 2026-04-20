@@ -15,7 +15,11 @@
  *   trace.end({ output: finalResult });
  */
 
-import { execSync } from "node:child_process";
+// Git metadata is captured on Node.js only. In React Native / browser bundles
+// (Metro, webpack, Vite) a static `import "node:child_process"` would be
+// hoisted into the output and blow up the bundle, so the import is hidden
+// behind a runtime require that static analyzers cannot see.
+type ExecSync = (typeof import("node:child_process"))["execSync"];
 
 interface GitContext {
   commit: string;
@@ -24,11 +28,38 @@ interface GitContext {
 }
 
 let cachedGit: GitContext | null | undefined;
+let cachedExec: ExecSync | null | undefined;
+
+function loadExecSync(): ExecSync | null {
+  if (cachedExec !== undefined) return cachedExec;
+  // Bail on non-Node runtimes (RN has no `process.versions.node`).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proc = (globalThis as any).process;
+  if (!proc || !proc.versions || !proc.versions.node) {
+    cachedExec = null;
+    return null;
+  }
+  try {
+    // Function-constructor require() is opaque to bundlers so the
+    // `node:child_process` string is never statically resolved.
+    const mod = Function("return require('node:child_process')")() as typeof import("node:child_process");
+    cachedExec = mod.execSync;
+    return cachedExec;
+  } catch {
+    cachedExec = null;
+    return null;
+  }
+}
 
 // Capture git HEAD / branch / dirtiness once per process. Returns null when the
-// process isn't inside a git checkout or when git isn't on PATH.
+// process isn't Node, isn't inside a git checkout, or git isn't on PATH.
 function detectGitContext(): GitContext | null {
   if (cachedGit !== undefined) return cachedGit;
+  const execSync = loadExecSync();
+  if (!execSync) {
+    cachedGit = null;
+    return null;
+  }
   try {
     const commit = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
     const branch = execSync("git rev-parse --abbrev-ref HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
