@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FixForm, type FixFormValue } from "./FixForm";
 import { FixStream, type FixResultPayload } from "./FixStream";
+import { DiffPreview } from "./DiffPreview";
 
 export interface FixContext {
   traceId: string;
@@ -95,14 +96,14 @@ export function FixDialog({ open, context, onClose }: FixDialogProps) {
           )}
 
           {phase.kind === "done" && (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-2">
-              <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Result</p>
-              <p className="text-sm text-zinc-300">{phase.result.explanation}</p>
-              <p className="text-xs text-zinc-500">
-                Files changed: {phase.result.filesChanged.length > 0 ? phase.result.filesChanged.join(", ") : "none"}
-              </p>
+            <div className="space-y-3">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-2">
+                <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Explanation</p>
+                <p className="text-sm text-zinc-300">{phase.result.explanation}</p>
+              </div>
+              <DiffPreview diff={phase.result.diff} />
               <p className="text-xs text-zinc-600">
-                Diff preview lands in T5 · download/copy in T7 · apply in T6.
+                Apply to working tree in T6 · download/copy in T7 · bisect banner in T8.
               </p>
             </div>
           )}
