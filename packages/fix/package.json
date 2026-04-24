@@ -1,16 +1,18 @@
 {
-  "name": "@pathlight/cli",
-  "version": "0.2.0",
-  "description": "Command-line tools for Pathlight",
+  "name": "@pathlight/fix",
+  "version": "0.1.0",
+  "description": "Code-fixing agent core for Pathlight — reads failing traces, proposes diffs via BYOK LLM providers.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "pathlight": "./bin/pathlight.js"
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "files": [
     "dist",
-    "bin",
     "README.md"
   ],
   "scripts": {
@@ -22,22 +24,27 @@
     "ai",
     "agent",
     "trace",
-    "cli",
-    "pathlight"
+    "debug",
+    "fix",
+    "pathlight",
+    "llm",
+    "byok"
   ],
   "author": "Nicholas Blanchard",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/syndicalt/pathlight.git",
-    "directory": "packages/cli"
+    "directory": "packages/fix"
   },
   "homepage": "https://github.com/syndicalt/pathlight",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.0",
+    "@pathlight/sdk": "^0.2.0",
+    "openai": "^6.34.0"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "vitest": "^4.1.4"
-  },
-  "dependencies": {
-    "@pathlight/fix": "^0.1.0"
   }
 }
