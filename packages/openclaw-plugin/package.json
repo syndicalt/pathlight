@@ -1,0 +1,55 @@
+{
+  "name": "@pathlight/openclaw",
+  "version": "0.1.0",
+  "description": "Pathlight tracing plugin for OpenClaw — agent runs, LLM calls, tool execution, and sub-agent delegation as Pathlight traces with git provenance.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "openclaw": {
+    "extensions": ["./dist/index.js"],
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2",
+      "minGatewayVersion": "2026.3.24-beta.2"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "pathlight",
+    "tracing",
+    "observability",
+    "ai",
+    "agent",
+    "llm"
+  ],
+  "author": "Nicholas Blanchard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syndicalt/pathlight.git",
+    "directory": "packages/openclaw-plugin"
+  },
+  "homepage": "https://github.com/syndicalt/pathlight",
+  "dependencies": {
+    "@pathlight/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
+  }
+}
