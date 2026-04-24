@@ -96,6 +96,15 @@ export class FixError extends Error {
   constructor(message: string, cause?: unknown) {
     super(message);
     this.name = "FixError";
-    this.cause = cause;
+    // `cause` is kept for programmatic access but non-enumerable so default
+    // JSON.stringify / console.error(err) / util.inspect(err) don't walk it.
+    // Underlying SDK errors can contain request headers (API keys, tokens),
+    // so we NEVER want them in accidental stringification paths.
+    Object.defineProperty(this, "cause", {
+      value: cause,
+      enumerable: false,
+      writable: false,
+      configurable: true,
+    });
   }
 }

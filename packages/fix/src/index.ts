@@ -15,6 +15,7 @@ import { createLlmAdapter, DEFAULT_MODELS, type LlmAdapter } from "./llm/index.j
 import { spawn } from "node:child_process";
 import { bisect, makeGitCheckoutProbe, type ProbeVerdict } from "./bisect.js";
 import { inferFilesFromSpans } from "./prompt.js";
+import { makeRedactor } from "./secrets.js";
 
 export type {
   FixOptions,
@@ -49,6 +50,7 @@ export { parseFixResponse, isUnifiedDiff } from "./diff-parser.js";
 export type { ParsedFix } from "./diff-parser.js";
 export { bisect, listCommitRange, parentOf, makeGitCheckoutProbe } from "./bisect.js";
 export type { BisectOptions, BisectResult, BisectProbe, ProbeVerdict } from "./bisect.js";
+export { redact, makeRedactor, containsAnySecret } from "./secrets.js";
 
 async function createSourceReader(source: FixOptions["source"]): Promise<SourceReader> {
   if (source.kind === "path") {
@@ -186,6 +188,12 @@ export async function fix(options: FixOptions): Promise<FixResult> {
     throw new FixError("bisect mode requires a git source");
   }
 
+  // Build a redactor over every secret this invocation knows about.
+  // Every error message produced from here on runs through `scrub()` before
+  // reaching the meta-trace, the thrown FixError, or any progress event.
+  const gitToken = options.source.kind === "git" ? options.source.token : undefined;
+  const scrub = makeRedactor(options.llm.apiKey, gitToken);
+
   const meta = new Pathlight({ baseUrl: options.collectorUrl });
   const metaTrace = meta.trace("fix.engine", safeInput(options));
   void metaTrace.id.catch(() => {});
@@ -200,12 +208,14 @@ export async function fix(options: FixOptions): Promise<FixResult> {
   try {
     reader = await createSourceReader(options.source);
   } catch (err) {
-    const message = err instanceof FixError ? err.message : "Unexpected engine error";
+    const message = scrub(err instanceof FixError ? err.message : "Unexpected engine error");
     await metaTrace.end({
       status: "failed",
       error: message,
     }).catch(() => {});
-    throw err;
+    // Re-throw a scrubbed FixError so callers who log the error message
+    // can never print the token. Original cause is preserved non-enumerably.
+    throw new FixError(message, err);
   }
 
   try {
@@ -299,12 +309,15 @@ export async function fix(options: FixOptions): Promise<FixResult> {
 
     return result;
   } catch (err) {
-    const message = err instanceof FixError ? err.message : "Unexpected engine error";
+    const message = scrub(err instanceof FixError ? err.message : "Unexpected engine error");
     await metaTrace.end({
       status: "failed",
       error: message,
     }).catch(() => {});
-    throw err;
+    // Re-throw a scrubbed FixError so the token never surfaces through
+    // `.message` or `.toString()`. The original error is preserved on
+    // the non-enumerable `cause`.
+    throw new FixError(message, err);
   } finally {
     await reader.cleanup().catch(() => {});
   }
