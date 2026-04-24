@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FixForm, type FixFormValue } from "./FixForm";
 import { FixStream, type FixResultPayload } from "./FixStream";
 import { DiffPreview } from "./DiffPreview";
+import { DiffActions } from "./DiffActions";
 
 export interface FixContext {
   traceId: string;
@@ -102,8 +103,13 @@ export function FixDialog({ open, context, onClose }: FixDialogProps) {
                 <p className="text-sm text-zinc-300">{phase.result.explanation}</p>
               </div>
               <DiffPreview diff={phase.result.diff} />
+              <DiffActions
+                diff={phase.result.diff}
+                sourceDir={phase.form.source.kind === "path" ? phase.form.source.dir : null}
+                traceId={context.traceId}
+              />
               <p className="text-xs text-zinc-600">
-                Apply to working tree in T6 · download/copy in T7 · bisect banner in T8.
+                Download / copy in T7 · bisect banner in T8.
               </p>
             </div>
           )}
