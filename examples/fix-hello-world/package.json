@@ -1,0 +1,16 @@
+{
+  "name": "fix-hello-world",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "agent": "tsx buggy-agent.ts"
+  },
+  "dependencies": {
+    "@pathlight/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
