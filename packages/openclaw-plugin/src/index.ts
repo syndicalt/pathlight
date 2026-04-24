@@ -2,6 +2,7 @@ import { definePluginEntry, type OpenClawPluginApi } from "openclaw/plugin-sdk/p
 import { Pathlight } from "@pathlight/sdk";
 import { PluginState } from "./state.js";
 import { registerTraceEnvelopeHooks } from "./hooks/trace-envelope.js";
+import { registerLlmHooks } from "./hooks/llm.js";
 
 export interface PathlightOpenClawOptions {
   baseUrl?: string;
@@ -34,6 +35,7 @@ export default definePluginEntry({
     api.logger.info(`pathlight: tracing enabled (${opts.baseUrl})`);
 
     registerTraceEnvelopeHooks(api, state);
+    registerLlmHooks(api, state);
   },
 });
 
