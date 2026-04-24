@@ -10,6 +10,7 @@ import { FixDialog, type FixContext } from "../../../components/Fix/FixDialog";
 
 interface Trace {
   id: string;
+  projectId: string | null;
   name: string;
   status: string;
   input: string | null;
