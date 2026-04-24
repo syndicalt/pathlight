@@ -44,6 +44,49 @@ ANTHROPIC_API_KEY=sk-ant-…  docker compose up -d
 Uncomment the matching lines in the `environment:` block of
 `docker-compose.yml` to persist them.
 
+## BYOK key storage (`PATHLIGHT_SEAL_KEY`)
+
+To enable the dashboard's encrypted key store (`/settings/keys`) and the
+`/v1/projects/:id/keys` endpoints — required for the **dashboard's "Fix this"
+flow** to resolve a sealed key without ever putting plaintext in the browser —
+set a 32-byte base64 master key on the collector before first start:
+
+```bash
+# 1. Generate a key. Store it somewhere safe (password manager, secrets manager).
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# → gf9XHIThUBjcr75wiXmS48KVA9oWNOim1lwELGnxfLE=
+
+# 2. Add it to .env (gitignored) at the repo root
+echo "PATHLIGHT_SEAL_KEY=gf9XHIThUBjcr75wiXmS48KVA9oWNOim1lwELGnxfLE=" >> .env
+
+# 3. Restart the stack so the collector picks it up
+docker compose down
+docker compose up -d
+```
+
+`docker-compose.yml` already passes `PATHLIGHT_SEAL_KEY` through to the
+collector container — the env var just needs to exist in the shell or `.env`
+when you run `docker compose up`.
+
+**Behavior:**
+
+- When `PATHLIGHT_SEAL_KEY` is set, the collector mounts
+  `/v1/projects/:id/keys` and the BYOK key picker in the dashboard
+  becomes functional.
+- When it's absent, the endpoints aren't mounted, the picker shows an
+  empty-state link, and users fall back to the fallback raw-text inputs
+  (or the CLI, which uses env vars instead of the store).
+- If the value is malformed (not exactly 32 bytes after base64 decode), the
+  collector **fail-stops** at boot — no insecure default, no fallback.
+
+**Backups:** `pathlight.db` (in the `pathlight_data` volume) holds the sealed
+ciphertext. Safe as long as `PATHLIGHT_SEAL_KEY` lives **separately** from the
+backup (different secrets bundle, different password-manager vault). Document
+this in your operations runbook.
+
+See [docs/byok-keys.md](byok-keys.md) for the full API, security invariants,
+and rotation guidance.
+
 ## Custom collector URL
 
 By default the dashboard talks to `http://localhost:4100`. If you're

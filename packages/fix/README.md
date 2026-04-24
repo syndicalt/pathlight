@@ -130,13 +130,40 @@ Provide a custom probe (e.g. backed by `pathlight-eval` assertions) via the libr
 import { bisect, makeGitCheckoutProbe } from "@pathlight/fix";
 ```
 
-## Roadmap
+## Companion surfaces
 
-- **P3 (#47):** Web API endpoint so the dashboard can call the engine.
-- **P4 (#48):** Encrypted BYOK key storage for the dashboard path.
-- **P5 (#49):** Dashboard "Fix this" button + diff preview UX.
+The library is the core. The fix engine ships behind two more surfaces, all
+pointing at the same `fix()` entry:
 
-See [the parent issue](https://github.com/syndicalt/pathlight/issues/44) for the full architecture.
+- **CLI** — `pathlight fix <trace-id>` for headless / CI use. See
+  [`@pathlight/cli`](https://www.npmjs.com/package/@pathlight/cli).
+- **Dashboard** — `/v1/fix` SSE endpoint on the collector + the **Fix this**
+  button on every failing span in the web UI. The dashboard's BYOK picker
+  resolves stored key IDs to plaintext server-side (the browser never sees
+  the secret). See [docs/fix.md](https://github.com/syndicalt/pathlight/blob/master/docs/fix.md)
+  for the dashboard walkthrough and [docs/byok-keys.md](https://github.com/syndicalt/pathlight/blob/master/docs/byok-keys.md)
+  for the encrypted key store.
+
+## Try it without writing your own bug
+
+The repo ships a tiny demo agent and a seed script:
+
+```bash
+# Run a Pathlight stack
+docker compose up -d
+
+# Seed a project + failing trace + matching demo source
+node scripts/seed-screenshots.mjs
+
+# Use the printed trace id with the CLI (or the dashboard's "Fix this" button)
+export PATHLIGHT_LLM_API_KEY=sk-ant-...
+pathlight fix <printed-trace-id> \
+  --source-dir examples/quote-agent
+```
+
+The engine reads `examples/quote-agent/src/agents/quote.ts`, identifies the
+JSON-parsing bug in `composeEstimate`, and emits a diff that tightens the
+system prompt and adds a defensive parser.
 
 ## License
 

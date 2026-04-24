@@ -34,6 +34,43 @@ git checkout -b fix/trc_xxx
 git apply /tmp/fix.patch
 ```
 
+## Try it without writing your own bug
+
+The repo ships a re-runnable seed that creates the data the dashboard "Fix this"
+flow needs (a project, a failing trace with `_source.file`-tagged spans, and
+the matching demo source files):
+
+```bash
+# 1. Run a Pathlight stack with BYOK enabled
+echo "PATHLIGHT_SEAL_KEY=$(node -e 'console.log(require(\"crypto\").randomBytes(32).toString(\"base64\"))')" >> .env
+docker compose down && docker compose up -d
+
+# 2. Seed the demo data
+node scripts/seed-screenshots.mjs
+# Outputs:
+#   ✓ Project ready (id: <abc>)
+#   ✓ Fix-engine demo trace:  <fixTraceId>
+#   ✓ OpenClaw demo trace:    <ocTraceId>
+#   ✓ BYOK keys seeded:       3
+
+# 3. Add your real Anthropic key
+#    Open http://localhost:3100/settings/keys
+#    Paste the printed Project ID, then add a key with kind=llm provider=anthropic.
+
+# 4. Open the failing trace, click the failed span, click "Fix this".
+#    Source dir: $(pwd)/examples/quote-agent
+#    API key: pick the one you just added
+#    → SSE streams progress; diff renders red/green per file.
+```
+
+The seed leaves three "fake" sealed keys behind so the BYOK list shows real
+variety even if you don't add a real one. The fake keys won't make a successful
+LLM call (the engine returns `secret resolution failed`), but they make
+`/settings/keys` look populated for screenshots and demos.
+
+See [`scripts/seed-screenshots.mjs`](../scripts/seed-screenshots.mjs) for the
+exact data shape.
+
 ## Quick start — Dashboard
 
 1. Open a failing trace at http://localhost:3100.

@@ -45,6 +45,22 @@ Defaults: `baseUrl=http://localhost:4100`, no API key, no project ID.
 
 Memory hooks are intentionally out of scope in v1 — the hook surface is still stabilizing upstream.
 
+## What you see in the dashboard
+
+A captured OpenClaw run lands as a single trace in the trace list. Open it and
+you'll see the full nesting: a root `agent:` span containing every `llm.*`
+call, every `tool:` call, and any sub-agent delegation as nested `agent:` spans
+under their parent. Each span carries its real duration and token counts; the
+trace header carries the git provenance the SDK auto-captured at run start.
+
+See [`site/assets/openclaw.png`](../site/assets/openclaw.png) for an example
+shot of a multi-step research agent that fans out to a sub-agent for vendor
+pricing lookup.
+
+To reproduce that exact shape locally without writing an OpenClaw config, run
+[`scripts/seed-screenshots.mjs`](../scripts/seed-screenshots.mjs) — it crafts
+a synthetic OpenClaw-shape trace with the full nested layout and tags.
+
 ## Sub-agent nesting
 
 OpenClaw sub-agents are separate runs with their own `runId`. The plugin emits an `agent`-type **marker span** in the parent trace (carrying `childSessionKey` + `parentRunId` metadata) and lets the child's own `before_agent_start` hook open its own top-level Pathlight trace. Cross-trace linking via metadata is a planned UX pass.

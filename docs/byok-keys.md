@@ -19,6 +19,9 @@ When `PATHLIGHT_SEAL_KEY` is set the collector loads [`@pathlight/keys`](../pack
 
 The collector **fail-stops** (`process.exit(1)`) if `PATHLIGHT_SEAL_KEY` is present but malformed. No default fallback, no insecure generation.
 
+For the full `docker compose` walkthrough — `.env` setup, restart sequence,
+backup considerations — see [docs/docker.md](docker.md#byok-key-storage-pathlight_seal_key).
+
 ## Manage keys
 
 Open `http://localhost:3100/settings/keys`:
@@ -28,6 +31,22 @@ Open `http://localhost:3100/settings/keys`:
 3. Rotate inline per row; revoke removes the row immediately.
 
 Every displayed value is masked to `••••••••<last-4>`. The plaintext is never shown after creation — if you lose it, rotate.
+
+### Seed demo keys
+
+The repo's `scripts/seed-screenshots.mjs` populates a project with three sealed
+keys (Anthropic LLM, OpenAI LLM, GitHub git token) so the list has real variety
+without you having to paste anything. The values are obviously fake — they
+won't resolve a real LLM call, but they exercise the full create / list /
+mask UI:
+
+```bash
+node scripts/seed-screenshots.mjs   # requires PATHLIGHT_SEAL_KEY set on the collector
+# → BYOK keys seeded: 3
+```
+
+Use this to dogfood the picker UX, capture screenshots, or smoke-test the
+endpoints before adding your real keys.
 
 ## How the dashboard uses stored keys
 

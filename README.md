@@ -105,6 +105,22 @@ waterfall, source locations, token counts, and git provenance.
 
 ---
 
+## Screenshots
+
+| Surface | Shot |
+| --- | --- |
+| Dashboard "Fix this" dialog with streaming diff | [`site/assets/fix.png`](site/assets/fix.png) |
+| BYOK key store at `/settings/keys` (masked previews) | [`site/assets/byok.png`](site/assets/byok.png) |
+| OpenClaw-generated trace with nested agent / llm / tool spans | [`site/assets/openclaw.png`](site/assets/openclaw.png) |
+| Trace compare view (diff two runs side-by-side) | [`site/assets/diff.png`](site/assets/diff.png) |
+| LLM replay editor on a span | [`site/assets/replay.png`](site/assets/replay.png) |
+| Live breakpoint editor floating over the dashboard | [`site/assets/breakpoint.png`](site/assets/breakpoint.png) |
+
+All shots are captured against the running stack via `scripts/seed-screenshots.mjs`
++ `examples/quote-agent` — re-runnable for re-shooting after a UI change.
+
+---
+
 ## Workflow playbooks
 
 ### "Did my prompt change regress anything?"
