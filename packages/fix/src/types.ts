@@ -51,6 +51,12 @@ export type FixProgress =
   | { kind: "bisect-iteration"; sha: string; depth: number }
   | { kind: "bisect-found"; sha: string };
 
+/**
+ * Verdict returned by a bisect probe — does this commit reproduce the failure?
+ * Re-exported here to keep the public `FixOptions` self-contained.
+ */
+export type BisectProbeVerdict = "good" | "bad" | "skip";
+
 export interface FixOptions {
   traceId: string;
   collectorUrl: string;
@@ -59,6 +65,14 @@ export interface FixOptions {
   mode: FixMode;
   /** Optional progress callback. Called synchronously in emission order. */
   onProgress?: (event: FixProgress) => void;
+  /**
+   * Bisect-only: custom probe to decide "does this SHA reproduce the failure?"
+   * Called once per candidate commit during binary search. If omitted, the
+   * engine uses a heuristic probe based on file-existence + error-signal
+   * presence in candidate files (sufficient for simple regression tests,
+   * not a substitute for real eval-based probes).
+   */
+  bisectProbe?: (sha: string) => Promise<BisectProbeVerdict>;
 }
 
 export interface FixResult {
@@ -82,6 +96,15 @@ export class FixError extends Error {
   constructor(message: string, cause?: unknown) {
     super(message);
     this.name = "FixError";
-    this.cause = cause;
+    // `cause` is kept for programmatic access but non-enumerable so default
+    // JSON.stringify / console.error(err) / util.inspect(err) don't walk it.
+    // Underlying SDK errors can contain request headers (API keys, tokens),
+    // so we NEVER want them in accidental stringification paths.
+    Object.defineProperty(this, "cause", {
+      value: cause,
+      enumerable: false,
+      writable: false,
+      configurable: true,
+    });
   }
 }
