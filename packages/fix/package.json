@@ -1,6 +1,6 @@
 {
   "name": "@pathlight/fix",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Code-fixing agent core for Pathlight — reads failing traces, proposes diffs via BYOK LLM providers.",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,7 +40,7 @@
   "homepage": "https://github.com/syndicalt/pathlight",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.0",
-    "@pathlight/sdk": "^0.2.0",
+    "@pathlight/sdk": "^0.3.0",
     "openai": "^6.34.0"
   },
   "devDependencies": {

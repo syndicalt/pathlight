@@ -2,7 +2,10 @@
 
 All notable changes to Pathlight. Dates are release days, not merge days.
 
-## Unreleased
+## 0.3.0 — 2026-04-24
+
+Published to npm: `@pathlight/sdk`, `@pathlight/eval`, `@pathlight/cli`,
+`@pathlight/fix` (new), `@pathlight/openclaw` (new).
 
 ### Added — Code-fixing agent ([#44](https://github.com/syndicalt/pathlight/issues/44))
 - New `@pathlight/fix` library. Pure `fix({ traceId, collectorUrl, source, llm, mode })`

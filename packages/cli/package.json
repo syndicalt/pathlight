@@ -1,6 +1,6 @@
 {
   "name": "@pathlight/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Command-line tools for Pathlight",
   "type": "module",
   "main": "./dist/index.js",
@@ -38,6 +38,6 @@
     "vitest": "^4.1.4"
   },
   "dependencies": {
-    "@pathlight/fix": "^0.1.0"
+    "@pathlight/fix": "^0.3.0"
   }
 }

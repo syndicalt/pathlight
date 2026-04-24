@@ -1,6 +1,6 @@
 {
   "name": "@pathlight/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SDK for Pathlight — visual debugging and observability for AI agents",
   "type": "module",
   "main": "./dist/index.js",

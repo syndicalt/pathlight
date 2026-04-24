@@ -1,6 +1,6 @@
 {
   "name": "@pathlight/openclaw",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Pathlight tracing plugin for OpenClaw — agent runs, LLM calls, tool execution, and sub-agent delegation as Pathlight traces with git provenance.",
   "type": "module",
   "main": "./dist/index.js",
@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/syndicalt/pathlight",
   "dependencies": {
-    "@pathlight/sdk": "^0.2.0"
+    "@pathlight/sdk": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
