@@ -95,6 +95,27 @@ export const projects = sqliteTable("projects", {
     .$defaultFn(() => new Date()),
 });
 
+// BYOK API keys — encrypted-at-rest store for per-project LLM API keys
+// and git tokens. `sealed_value` is libsodium crypto_secretbox_easy
+// ciphertext + nonce (packed). Plaintext NEVER lives here and must NEVER
+// be returned from any endpoint. `preview` is the unencrypted last-4
+// characters of the plaintext for masked UI display (••••••••<last-4>).
+export const apiKeys = sqliteTable("api_keys", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id),
+  kind: text("kind", { enum: ["llm", "git"] }).notNull(),
+  provider: text("provider").notNull(),     // e.g. "anthropic", "openai", "github"
+  label: text("label").notNull(),           // user-chosen display name
+  sealedValue: text("sealed_value").notNull(),  // libsodium ciphertext (nonce+ct, base64)
+  preview: text("preview").notNull(),       // last-4 chars of plaintext, for masked display only
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+});
+
 // Scores — quality/eval annotations on traces or spans
 export const scores = sqliteTable("scores", {
   id: text("id").primaryKey(),

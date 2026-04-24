@@ -1,25 +1,27 @@
 {
-  "name": "@pathlight/collector",
+  "name": "@pathlight/keys",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
     "test": "vitest run"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
     "@pathlight/db": "*",
-    "@pathlight/fix": "*",
-    "@pathlight/keys": "*",
-    "dotenv": "^16.4.0",
-    "hono": "^4.7.0",
+    "libsodium-wrappers": "^0.7.15",
     "nanoid": "^5.0.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
+    "@types/libsodium-wrappers": "^0.7.14",
     "typescript": "^5.7.0",
     "vitest": "^4.1.4"
   }
