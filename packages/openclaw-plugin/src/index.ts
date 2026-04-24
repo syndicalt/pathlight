@@ -1,25 +1,15 @@
-import { definePluginEntry, type OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { Pathlight } from "@pathlight/sdk";
 import { PluginState } from "./state.js";
+import { resolveOptions } from "./config.js";
+import { createSafeOn } from "./safe.js";
 import { registerTraceEnvelopeHooks } from "./hooks/trace-envelope.js";
 import { registerLlmHooks } from "./hooks/llm.js";
 import { registerToolHooks } from "./hooks/tool.js";
 import { registerDelegationHooks } from "./hooks/delegation.js";
 
-export interface PathlightOpenClawOptions {
-  baseUrl?: string;
-  apiKey?: string;
-  projectId?: string;
-}
-
-function resolveOptions(api: OpenClawPluginApi): Required<Pick<PathlightOpenClawOptions, "baseUrl">> & PathlightOpenClawOptions {
-  const cfg = (api.pluginConfig ?? {}) as PathlightOpenClawOptions;
-  return {
-    baseUrl: cfg.baseUrl ?? process.env.PATHLIGHT_BASE_URL ?? "http://localhost:4100",
-    apiKey: cfg.apiKey ?? process.env.PATHLIGHT_API_KEY,
-    projectId: cfg.projectId ?? process.env.PATHLIGHT_PROJECT_ID,
-  };
-}
+export type { PathlightOpenClawOptions } from "./config.js";
+export { PluginState };
 
 export default definePluginEntry({
   id: "pathlight",
@@ -33,14 +23,13 @@ export default definePluginEntry({
       projectId: opts.projectId,
     });
     const state = new PluginState(client);
+    const safeOn = createSafeOn(api);
 
     api.logger.info(`pathlight: tracing enabled (${opts.baseUrl})`);
 
-    registerTraceEnvelopeHooks(api, state);
-    registerLlmHooks(api, state);
-    registerToolHooks(api, state);
-    registerDelegationHooks(api, state);
+    registerTraceEnvelopeHooks(safeOn, api.logger, state);
+    registerLlmHooks(safeOn, api.logger, state);
+    registerToolHooks(safeOn, api.logger, state);
+    registerDelegationHooks(safeOn, api.logger, state);
   },
 });
-
-export { PluginState };

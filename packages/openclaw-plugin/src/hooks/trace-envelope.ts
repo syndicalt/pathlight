@@ -1,8 +1,16 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import type { PluginState } from "../state.js";
+import { silence } from "../safe.js";
 
-export function registerTraceEnvelopeHooks(api: OpenClawPluginApi, state: PluginState): void {
-  api.on("before_agent_start", async (event, ctx) => {
+type SafeOn = ReturnType<typeof import("../safe.js").createSafeOn>;
+type Logger = OpenClawPluginApi["logger"];
+
+export function registerTraceEnvelopeHooks(
+  safeOn: SafeOn,
+  _logger: Logger,
+  state: PluginState,
+): void {
+  safeOn("before_agent_start", async (event, ctx) => {
     const runId = ctx.runId;
     if (!runId) return;
 
@@ -22,23 +30,20 @@ export function registerTraceEnvelopeHooks(api: OpenClawPluginApi, state: Plugin
         },
       },
     );
+    silence(trace);
     state.setTrace(runId, trace);
   });
 
-  api.on("agent_end", async (event, ctx) => {
+  safeOn("agent_end", async (event, ctx) => {
     const runId = ctx.runId;
     if (!runId) return;
     const trace = state.removeTrace(runId);
     if (!trace) return;
 
-    try {
-      await trace.end({
-        output: event.messages,
-        status: event.success ? "completed" : "failed",
-        error: event.error,
-      });
-    } catch (err) {
-      api.logger.warn("pathlight: trace.end failed", { runId, err: String(err) });
-    }
+    await trace.end({
+      output: event.messages,
+      status: event.success ? "completed" : "failed",
+      error: event.error,
+    });
   });
 }
