@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.0",
     "@pathlight/db": "*",
+    "@pathlight/fix": "*",
     "dotenv": "^16.4.0",
     "hono": "^4.7.0",
     "nanoid": "^5.0.0"
