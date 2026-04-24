@@ -4,6 +4,83 @@ All notable changes to Pathlight. Dates are release days, not merge days.
 
 ## Unreleased
 
+### Added — Code-fixing agent ([#44](https://github.com/syndicalt/pathlight/issues/44))
+- New `@pathlight/fix` library. Pure `fix({ traceId, collectorUrl, source, llm, mode })`
+  function reads a failing trace, pulls the source files the spans referenced
+  (via `_source.file` metadata), and returns a unified diff + explanation.
+- **BYOK** — user brings their own Anthropic or OpenAI key. Pathlight never
+  acts as an inference proxy. Keys are never logged, never emitted in traces,
+  never echoed in errors. `FixError.cause` is non-enumerable so default
+  stringification paths can't walk into SDK error payloads that echo headers.
+- **Three source modes**: `{ kind: "path", dir }` reads a local tree;
+  `{ kind: "git", repoUrl, token, ref? }` shallow-clones into a tempdir with
+  read-only tokens only; bisect deepens the clone automatically as needed.
+- **Three fix modes**: `span` (fix the failing span[s]), `trace` (whole
+  trace), `bisect` (binary-search a commit range for the regression commit
+  in O(log₂ N) probes, propose a fix against that SHA).
+- **Structured tool-use output.** Both Anthropic and OpenAI adapters expose
+  the same `complete({ messages, tools })` interface and return the model's
+  diff via a `propose_fix` tool call — no prose parsing.
+- **Meta-trace emission** on every invocation. Carries mode, source kind,
+  provider, model, token counts, files-changed — never the diff body,
+  never keys/tokens.
+- New CLI subcommand `pathlight fix <trace-id>` with `--source-dir` /
+  `--git-url` / `--provider` / `--model` / `--apply` / `--bisect` /
+  `--from` / `--to` flags. Key from `PATHLIGHT_LLM_API_KEY` env,
+  token from `PATHLIGHT_GIT_TOKEN`. Progress prints to stderr so stdout
+  stays pipeable.
+- New collector route `POST /v1/fix` streams the engine over SSE
+  (`progress` / `chunk` / `result` / `error` / `done`).
+- New collector route `POST /v1/fix-apply` writes a diff to a local
+  working tree via `git apply` with an explicit `--check` precheck.
+- Dashboard adds **"Fix this"** button on every failed span's inspector.
+  Dialog includes source picker, provider + BYOK key picker, mode selector,
+  live SSE progress stream, unified diff viewer with per-file expand /
+  collapse + add/remove colorization, **Apply to working tree** / **Download
+  .patch** / **Copy** actions, and a **Bisect result** banner when the run
+  identifies a regression commit.
+- New example apps: `examples/fix-hello-world/` (path-mode loop against a
+  deliberately-buggy agent), `examples/fix-bisect-regression/` (git + bisect
+  walkthrough with a known regression).
+- Docs: [docs/fix.md](docs/fix.md).
+
+### Added — BYOK encrypted key storage ([#48](https://github.com/syndicalt/pathlight/issues/48))
+- New `@pathlight/keys` internal package backed by libsodium
+  `crypto_secretbox_easy` (authenticated encryption, fresh nonce per value).
+- New `api_keys` table in `@pathlight/db` with `kind` (`llm` | `git`),
+  `provider`, `label`, `sealed_value`, `preview` (last 4 chars for UI mask).
+- Collector routes `POST/GET/PUT/DELETE /v1/projects/:id/keys` — mounted
+  only when `PATHLIGHT_SEAL_KEY` (32-byte base64) is set. Fail-stop on
+  missing/malformed. All responses are masked metadata; plaintext never
+  leaves the server.
+- Cross-project access returns `null` (same shape as not-found). Cross-kind
+  access on the `SecretResolver` returns `null` to prevent mis-typed secrets
+  flowing into the wrong API.
+- `SecretResolver` adapter plugs into `POST /v1/fix` so the dashboard
+  drives fix runs with stored key IDs — plaintext never touches the browser.
+- New dashboard page `/settings/keys` — per-project list with add / rotate
+  (atomic) / revoke flows; values masked as `••••••••<last-4>`.
+- `packages/keys/LEAK-AUDIT.md` documents six grep-based audit probes + four
+  runtime probes that every release must pass.
+- Docs: [docs/byok-keys.md](docs/byok-keys.md).
+
+### Added — OpenClaw plugin ([#42](https://github.com/syndicalt/pathlight/issues/42))
+- New `@pathlight/openclaw` npm package — a native OpenClaw plugin that
+  captures agent runs, LLM calls, tool execution, and sub-agent delegation
+  as Pathlight traces, with `git_commit` / `git_branch` / `git_dirty`
+  automatically attached to every trace.
+- Install: `openclaw plugins install @pathlight/openclaw`. Configure via
+  `PATHLIGHT_BASE_URL` / `PATHLIGHT_API_KEY` / `PATHLIGHT_PROJECT_ID` env
+  (or OpenClaw plugin-config file; precedence: config > env > defaults).
+- Hooks wired: `before_agent_start` / `agent_end`, `llm_input` / `llm_output`,
+  `before_tool_call` / `after_tool_call`, `subagent_spawning` / `subagent_ended`.
+  Memory hooks deferred until the upstream surface stabilizes.
+- Graceful degradation: unreachable collector logs one warning and
+  continues best-effort; hook throws are caught in a shared `safeOn` wrapper
+  so a single bad hook can't take down the plugin.
+- Shipped with an `examples/openclaw-hello-world/` starter.
+- Docs: [docs/openclaw-plugin.md](docs/openclaw-plugin.md).
+
 ### Added — Docker Compose + prebuilt GHCR images
 - `docker compose up -d` starts collector + dashboard with a named SQLite
   volume; migrations run automatically on first boot.
@@ -11,6 +88,13 @@ All notable changes to Pathlight. Dates are release days, not merge days.
   at the repo root. Web image uses Next.js 15 standalone output.
 - GitHub Actions workflow publishes tagged + `:latest` images to
   `ghcr.io/syndicalt/pathlight-{collector,web}` on every push to master.
+
+### Changed
+- TopNav gains a **Settings** link (`/settings/keys`) and bumps the version
+  badge to v0.3.0.
+- Collector router mounts `/v1/fix` unconditionally and
+  `/v1/projects/:id/keys` only when `PATHLIGHT_SEAL_KEY` is set — BYOK is
+  opt-in per deployment.
 
 ### Fixed
 - `@pathlight/db` now ships a proper compiled build (`main` was pointing
