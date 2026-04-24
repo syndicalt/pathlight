@@ -154,6 +154,61 @@
       <img src="assets/diff.png" alt="Side-by-side trace comparison with regression deltas highlighted" />
     </div>
   </div>
+
+  <div class="feature flip">
+    <div class="feature-text">
+      <p class="eyebrow">Fix this</p>
+      <h2>Fix a failing trace without leaving the dashboard.</h2>
+      <p>
+        Every failed span gets a <em>Fix this</em> button. Pick your provider,
+        stream the fix over SSE, preview the unified diff, then
+        <em>Apply to working tree</em> — or run with <code>--bisect</code> to
+        binary-search a commit range for the regression in O(log&nbsp;N) probes.
+        BYOK: your Anthropic or OpenAI key, never a Pathlight proxy.
+      </p>
+    </div>
+    <div class="feature-media">
+      <!-- SCREENSHOT: fix.png — fix dialog open on a failed span, showing provider picker, streaming progress, and a rendered unified diff with add/remove colorization; bisect banner visible if possible -->
+      <img src="assets/fix.png" alt="Fix dialog with streaming progress and unified diff preview for a failing span" />
+    </div>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">BYOK encrypted keys</p>
+      <h2>Your provider keys, sealed at rest.</h2>
+      <p>
+        Store Anthropic, OpenAI, and git tokens per project. libsodium
+        <code>crypto_secretbox_easy</code> with a fresh nonce per value;
+        plaintext is never logged, never returned, never echoed in errors.
+        The dashboard drives fix runs with stored key IDs so secrets never
+        touch the browser.
+      </p>
+    </div>
+    <div class="feature-media">
+      <!-- SCREENSHOT: byok.png — /settings/keys page with the per-project key list; values masked as ••••••••<last-4>; Add / Rotate / Revoke actions visible -->
+      <img src="assets/byok.png" alt="Settings · keys page with masked per-project LLM and git secrets" />
+    </div>
+  </div>
+
+  <div class="feature flip">
+    <div class="feature-text">
+      <p class="eyebrow">OpenClaw plugin</p>
+      <h2>OpenClaw agents, auto-instrumented.</h2>
+      <p>
+        <code>openclaw plugins install @pathlight/openclaw</code> and every
+        agent run, LLM call, tool invocation, and sub-agent delegation shows up
+        in your dashboard — with <code>git_commit</code> /
+        <code>git_branch</code> / <code>git_dirty</code> attached automatically.
+        Graceful degradation if the collector is unreachable; one warning, no
+        crash.
+      </p>
+    </div>
+    <div class="feature-media">
+      <!-- SCREENSHOT: openclaw.png — trace detail page with an OpenClaw-generated trace showing nested agent / llm / tool / subagent spans in the waterfall, git commit badge on the trace header -->
+      <img src="assets/openclaw.png" alt="OpenClaw-generated trace with nested agent, LLM, tool, and sub-agent spans" />
+    </div>
+  </div>
 </section>
 
 <section class="pillars">
@@ -234,7 +289,7 @@ with pl.trace("my-agent", input=&#123;"query": q&#125;) as trace:
   <div class="footer-grid">
     <div>
       <p class="brand"><span class="brand-accent">Path</span>light</p>
-      <p class="footer-muted">v0.2.0 · MIT</p>
+      <p class="footer-muted">v0.3.0 · MIT</p>
     </div>
     <div>
       <p class="footer-heading">Install</p>
@@ -242,6 +297,8 @@ with pl.trace("my-agent", input=&#123;"query": q&#125;) as trace:
       <a href="https://pypi.org/project/pathlight/">pathlight (PyPI)</a>
       <a href="https://www.npmjs.com/package/@pathlight/eval">@pathlight/eval</a>
       <a href="https://www.npmjs.com/package/@pathlight/cli">@pathlight/cli</a>
+      <a href="https://www.npmjs.com/package/@pathlight/fix">@pathlight/fix</a>
+      <a href="https://www.npmjs.com/package/@pathlight/openclaw">@pathlight/openclaw</a>
     </div>
     <div>
       <p class="footer-heading">Project</p>
@@ -255,6 +312,9 @@ with pl.trace("my-agent", input=&#123;"query": q&#125;) as trace:
       <a href="https://github.com/syndicalt/pathlight/blob/master/docs/breakpoints.md">Breakpoints</a>
       <a href="https://github.com/syndicalt/pathlight/blob/master/docs/replay.md">Replay</a>
       <a href="https://github.com/syndicalt/pathlight/blob/master/docs/trace-diff.md">Trace diff</a>
+      <a href="https://github.com/syndicalt/pathlight/blob/master/docs/fix.md">Fix engine</a>
+      <a href="https://github.com/syndicalt/pathlight/blob/master/docs/byok-keys.md">BYOK keys</a>
+      <a href="https://github.com/syndicalt/pathlight/blob/master/docs/openclaw-plugin.md">OpenClaw</a>
       <a href="https://github.com/syndicalt/pathlight/blob/master/docs/opentelemetry.md">OpenTelemetry</a>
     </div>
   </div>

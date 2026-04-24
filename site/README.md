@@ -13,7 +13,10 @@ site/
     ├── og-cover.png        # 1200x630 social preview
     ├── replay.png          # Replay editor feature shot
     ├── breakpoint.png      # Breakpoint panel feature shot
-    └── diff.png            # Trace compare feature shot
+    ├── diff.png            # Trace compare feature shot
+    ├── fix.png             # Fix dialog / unified diff feature shot
+    ├── byok.png            # /settings/keys BYOK feature shot
+    └── openclaw.png        # OpenClaw-generated trace feature shot
 ```
 
 ## Screenshots to capture
@@ -29,6 +32,9 @@ GitHub Pages will redeploy on push.
 | `assets/replay.png` | Trace detail with an LLM span selected, replay editor open showing editable system prompt + message + API key input + "Run replay" button. Bonus: a result panel populated underneath. |
 | `assets/breakpoint.png` | Dashboard with the floating amber "N paused" badge and the breakpoint editor panel visible, JSON state in the textarea, Resume buttons at the bottom. |
 | `assets/diff.png` | Trace compare view with two trace headers at top, the red-highlighted delta bar in the middle, and aligned spans rows with at least one expanded showing the line-level JSON diff. |
+| `assets/fix.png` | Fix dialog open on a failed span, provider picker + BYOK key picker visible, streaming progress, rendered unified diff with add/remove colorization; bisect banner if available. |
+| `assets/byok.png` | `/settings/keys` page with the per-project key list, values masked as `••••••••<last-4>`, Add / Rotate / Revoke actions visible. |
+| `assets/openclaw.png` | Trace detail with an OpenClaw-generated trace showing nested agent / llm / tool / subagent spans in the waterfall, git commit badge on the trace header. |
 
 Dimensions don't have to be exact — the CSS fits whatever aspect ratio
 you give it. Aim for retina-crisp widescreen shots (at least 1600px
