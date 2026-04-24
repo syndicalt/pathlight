@@ -1,0 +1,28 @@
+{
+  "name": "@pathlight/keys",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pathlight/db": "*",
+    "libsodium-wrappers": "^0.7.15",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/libsodium-wrappers": "^0.7.14",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
+  }
+}
