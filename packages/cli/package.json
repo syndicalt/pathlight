@@ -36,5 +36,8 @@
   "devDependencies": {
     "typescript": "^5.7.0",
     "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "@pathlight/fix": "^0.1.0"
   }
 }
