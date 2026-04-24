@@ -15,6 +15,9 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/eval/package.json ./packages/eval/
 COPY packages/cli/package.json ./packages/cli/
+COPY packages/fix/package.json ./packages/fix/
+COPY packages/keys/package.json ./packages/keys/
+COPY packages/openclaw-plugin/package.json ./packages/openclaw-plugin/
 COPY apps/web/package.json ./apps/web/
 
 RUN npm ci --ignore-scripts

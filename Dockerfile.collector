@@ -22,6 +22,9 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/eval/package.json ./packages/eval/
 COPY packages/cli/package.json ./packages/cli/
+COPY packages/fix/package.json ./packages/fix/
+COPY packages/keys/package.json ./packages/keys/
+COPY packages/openclaw-plugin/package.json ./packages/openclaw-plugin/
 COPY apps/web/package.json ./apps/web/
 
 RUN npm ci --ignore-scripts
@@ -33,9 +36,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
 
-# Copy source for only the workspaces the collector touches. db is a
-# workspace dep; web / sdk / eval / cli are not required.
+# Copy source for only the workspaces the collector touches. db / keys /
+# fix are direct deps; sdk is a transitive dep via @pathlight/fix.
 COPY packages/db ./packages/db
+COPY packages/sdk ./packages/sdk
+COPY packages/keys ./packages/keys
+COPY packages/fix ./packages/fix
 COPY packages/collector ./packages/collector
 
 RUN npx turbo build --filter=@pathlight/collector
@@ -57,6 +63,12 @@ COPY --from=builder /app/packages/collector/dist ./packages/collector/dist
 COPY --from=builder /app/packages/db/package.json ./packages/db/
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 COPY --from=builder /app/packages/db/drizzle ./packages/db/drizzle
+COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
+COPY --from=builder /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=builder /app/packages/keys/package.json ./packages/keys/
+COPY --from=builder /app/packages/keys/dist ./packages/keys/dist
+COPY --from=builder /app/packages/fix/package.json ./packages/fix/
+COPY --from=builder /app/packages/fix/dist ./packages/fix/dist
 
 # SQLite file lives on a mounted volume so data survives container restarts.
 VOLUME ["/data"]
