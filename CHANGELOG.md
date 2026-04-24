@@ -6,6 +6,7 @@ All notable changes to Pathlight. Dates are release days, not merge days.
 
 Published to npm: `@pathlight/sdk`, `@pathlight/eval`, `@pathlight/cli`,
 `@pathlight/fix` (new), `@pathlight/openclaw` (new).
+Published to PyPI: `pathlight`.
 
 ### Added — Code-fixing agent ([#44](https://github.com/syndicalt/pathlight/issues/44))
 - New `@pathlight/fix` library. Pure `fix({ traceId, collectorUrl, source, llm, mode })`
