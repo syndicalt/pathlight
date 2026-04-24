@@ -39,7 +39,9 @@
   },
   "homepage": "https://github.com/syndicalt/pathlight",
   "dependencies": {
-    "@pathlight/sdk": "^0.2.0"
+    "@anthropic-ai/sdk": "^0.91.0",
+    "@pathlight/sdk": "^0.2.0",
+    "openai": "^6.34.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
