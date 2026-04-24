@@ -4,12 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pathlight — a debugger for AI agents</title>
-<meta name="description" content="Visual traces, live breakpoints, prompt replay. Self-hosted, open source observability for AI agents." />
+<meta name="description" content="Visual traces, live breakpoints, prompt replay, one-click fixes. Self-hosted, open source observability for AI agents." />
 
 <!-- Social preview. og:image MUST be an absolute URL — unfurlers reject
      relative paths. Once assets/og-cover.png exists, swap the filename. -->
 <meta property="og:title" content="Pathlight — a debugger for AI agents" />
-<meta property="og:description" content="Visual traces, live breakpoints, prompt replay. Self-hosted, open source." />
+<meta property="og:description" content="Visual traces, live breakpoints, prompt replay, one-click fixes. Self-hosted, open source." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://syndicalt.github.io/pathlight/" />
 <!-- assets/og-cover.png is a 1200x630 composite (2:1 aspect for X) —
@@ -21,7 +21,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:image" content="https://syndicalt.github.io/pathlight/assets/og-cover.png" />
 <meta name="twitter:title" content="Pathlight — a debugger for AI agents" />
-<meta name="twitter:description" content="Visual traces, live breakpoints, prompt replay. Self-hosted, open source." />
+<meta name="twitter:description" content="Visual traces, live breakpoints, prompt replay, one-click fixes. Self-hosted, open source." />
 
 <link rel="canonical" href="https://syndicalt.github.io/pathlight/" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='6' cy='6' r='2' fill='%2360a5fa'/%3E%3Ccircle cx='18' cy='6' r='2' fill='%23e4e4e7'/%3E%3Ccircle cx='18' cy='18' r='2' fill='%23e4e4e7'/%3E%3Cpath d='M8 6h6a4 4 0 014 4v8' stroke='%23e4e4e7' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
@@ -48,8 +48,9 @@
     <p class="eyebrow">Open source · self-hosted · <span class="dot"></span> live</p>
     <h1>A debugger for <span class="highlight">AI agents</span>.</h1>
     <p class="tagline">
-      Visual traces, live breakpoints, prompt replay. Drop the SDK in, get every
-      LLM call and tool invocation as an editable, diffable trace.
+      Visual traces, live breakpoints, prompt replay, one-click fixes. Drop the
+      SDK in, get every LLM call and tool invocation as an editable, diffable
+      trace — then fix failing runs without leaving the dashboard.
     </p>
     <div class="cta-row">
       <a href="#install" class="btn btn-primary">Get started</a>
@@ -235,6 +236,18 @@
   <div class="pillar">
     <h3>Share without signup</h3>
     <p><code>pathlight share &lt;trace-id&gt;</code> emits a single self-contained HTML file. Zero dependencies to open.</p>
+  </div>
+  <div class="pillar">
+    <h3>Fix engine</h3>
+    <p>Every failed span gets a <em>Fix this</em> button. Stream a BYOK-powered unified diff, apply to your working tree, or <code>--bisect</code> a commit range to find the regression SHA.</p>
+  </div>
+  <div class="pillar">
+    <h3>BYOK by default</h3>
+    <p>Pathlight never proxies your inference. Anthropic, OpenAI, and git tokens stored per project with libsodium-sealed encryption; plaintext never leaves the server.</p>
+  </div>
+  <div class="pillar">
+    <h3>OpenClaw native</h3>
+    <p><code>openclaw plugins install @pathlight/openclaw</code> — agent runs, LLM calls, tool invocations, and sub-agent delegation as Pathlight traces with full git provenance.</p>
   </div>
 </section>
 
