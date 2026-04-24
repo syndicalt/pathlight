@@ -25,6 +25,9 @@ No more debugging agents with `console.log`.
 | **Live breakpoints** | `await tl.breakpoint(...)` pauses your agent; edit state on the dashboard and resume | [docs/breakpoints.md](docs/breakpoints.md) |
 | **LLM replay** | Edit messages on any LLM span and re-run against the real provider | [docs/replay.md](docs/replay.md) |
 | **Eval-as-code + CI** | `expect(trace).toCostLessThan(0.10)` — assert over recent traces, exit nonzero in CI | [packages/eval/README.md](packages/eval/README.md) |
+| **Code-fixing agent** | BYOK LLM reads your failing trace + source and proposes a unified diff. CLI, dashboard button, `bisect` across commits. | [docs/fix.md](docs/fix.md) |
+| **BYOK key storage** | Encrypted-at-rest LLM keys + git tokens per project. Dashboard picker uses stored IDs; plaintext never touches the browser. | [docs/byok-keys.md](docs/byok-keys.md) |
+| **OpenClaw plugin** | `@pathlight/openclaw` captures OpenClaw agent runs, LLM calls, tool execution, and sub-agent delegation with git provenance. | [docs/openclaw-plugin.md](docs/openclaw-plugin.md) |
 | **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
 | **OpenTelemetry interop** | Collector accepts OTLP/HTTP; any OTel-instrumented app can ship to Pathlight | [docs/opentelemetry.md](docs/opentelemetry.md) |
 | **Python SDK** | `pip install pathlight` — same dashboard features, Pythonic API, sync + async | [docs/python.md](docs/python.md) |
@@ -132,6 +135,22 @@ waterfall, source locations, token counts, and git provenance.
 2. Attach the HTML to your GitHub issue / Slack thread. They open it in any
    browser — no dashboard, no server, no dependencies.
 
+### "Fix this failing trace without leaving the dashboard."
+1. Open the failing trace, click the broken span.
+2. Click **Fix this** in the inspector header. Pick a source (local path or
+   remote git URL), a provider key from your BYOK store, and a mode
+   (span / trace / bisect).
+3. SSE streams progress. Diff preview renders per-file with add/remove
+   colorization. Click **Apply to working tree** (path mode) or
+   **Download .patch**. See [docs/fix.md](docs/fix.md).
+
+### "Which commit broke this agent?"
+1. From the CLI: `pathlight fix <trace-id> --bisect --from <good-sha> --to <bad-sha> --git-url <url>`
+2. Binary-search walks the commit range in O(log N) probes and returns the
+   regression SHA plus a proposed fix against that commit.
+3. In the dashboard: pick mode **Bisect** in the fix dialog — the result
+   screen shows a banner with the regression SHA linking to `/commits`.
+
 ---
 
 ## What you see
@@ -199,7 +218,10 @@ pathlight/
 │           │   └── commits/page.tsx        # Per-commit regression view
 │           ├── components/
 │           │   ├── TopNav.tsx              # Sticky horizontal nav
-│           │   └── BreakpointsPanel.tsx    # Floating badge + slide-out editor
+│           │   ├── BreakpointsPanel.tsx    # Floating badge + slide-out editor
+│           │   └── Fix/                    # "Fix this" dialog — button, form, key picker,
+│           │                               # SSE stream, diff preview, apply/download/copy,
+│           │                               # bisect banner
 │           └── lib/
 │               ├── api.ts                  # Collector fetch helpers
 │               ├── diff.ts                 # LCS line-diff utility
@@ -213,7 +235,10 @@ pathlight/
 │   │       │   ├── projects.ts      # Project CRUD
 │   │       │   ├── breakpoints.ts   # Live breakpoint register/wait/resume/SSE
 │   │       │   ├── replay.ts        # LLM replay proxy (OpenAI + Anthropic)
-│   │       │   └── otlp.ts          # OTLP/HTTP ingest (gen_ai.* mapping)
+│   │       │   ├── otlp.ts          # OTLP/HTTP ingest (gen_ai.* mapping)
+│   │       │   ├── fix.ts           # POST /v1/fix — SSE wrapper around @pathlight/fix
+│   │       │   ├── fix-apply.ts     # POST /v1/fix-apply — git apply a diff locally
+│   │       │   └── keys.ts          # BYOK key CRUD (mounted only when PATHLIGHT_SEAL_KEY is set)
 │   │       ├── events.ts            # Trace EventEmitter for SSE fan-out
 │   │       ├── breakpoints.ts       # In-memory breakpoint registry
 │   │       └── router.ts            # CORS + route mounting
@@ -235,11 +260,34 @@ pathlight/
 │   │   ├── bin/pathlight-eval.js
 │   │   ├── examples/
 │   │   └── src/index.ts             # expect() matchers, evaluate()
-│   └── cli/              # pathlight CLI (subcommand router)
-│       ├── bin/pathlight.js
+│   ├── cli/              # pathlight CLI (subcommand router)
+│   │   ├── bin/pathlight.js
+│   │   └── src/
+│   │       ├── commands/share.ts    # pathlight share <trace-id>
+│   │       ├── commands/fix.ts      # pathlight fix <trace-id> — path/git/bisect modes
+│   │       └── viewer-template.ts   # Self-contained HTML viewer
+│   ├── fix/              # Code-fixing agent core — @pathlight/fix
+│   │   └── src/
+│   │       ├── index.ts             # fix() entry + composition
+│   │       ├── types.ts             # FixOptions / FixResult / FixMode / FixProgress
+│   │       ├── source/{path,git}.ts # SourceReader implementations
+│   │       ├── llm/{anthropic,openai}.ts  # BYOK adapters behind a shared interface
+│   │       ├── bisect.ts            # O(log N) regression search
+│   │       ├── prompt.ts            # Trace + source → LLM messages; PROPOSE_FIX_TOOL schema
+│   │       ├── diff-parser.ts       # Tool-call → parsed unified diff
+│   │       └── secrets.ts           # Token/key redaction for error paths
+│   ├── keys/             # BYOK encrypted key storage — @pathlight/keys (internal)
+│   │   ├── LEAK-AUDIT.md            # Per-release security checklist
+│   │   └── src/
+│   │       ├── seal.ts              # libsodium crypto_secretbox primitives
+│   │       ├── seal-key.ts          # PATHLIGHT_SEAL_KEY loader (fail-stop on missing)
+│   │       ├── store.ts             # KeyStore: create/list/rotate/revoke/resolveSecret
+│   │       └── resolver.ts          # SecretResolver adapter for /v1/fix
+│   └── openclaw-plugin/  # OpenClaw tracing plugin — @pathlight/openclaw
 │       └── src/
-│           ├── commands/share.ts    # pathlight share <trace-id>
-│           └── viewer-template.ts   # Self-contained HTML viewer
+│           ├── index.ts             # definePluginEntry wiring
+│           ├── hooks/               # trace-envelope, llm, tool, delegation
+│           └── state.ts             # Per-run state (trace + in-flight spans)
 ├── Dockerfile.collector  # Multi-stage build; migrations run on boot
 ├── Dockerfile.web        # Next.js 15 standalone runtime
 ├── docker-compose.yml    # Collector + dashboard + SQLite volume
@@ -308,6 +356,24 @@ pathlight/
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/v1/otlp/traces` | POST | OTLP/HTTP JSON ingest. Accepts `resourceSpans[...]`. Maps `gen_ai.*` attributes to Pathlight fields. See [OTel docs](docs/opentelemetry.md). |
+
+### Fix engine
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/fix` | POST | Run `@pathlight/fix` against a failing trace. Response is `text/event-stream` with `progress` / `chunk` / `result` / `error` / `done` events. Resolves `keyId`/`tokenId` via the BYOK key store. See [docs/fix.md](docs/fix.md). |
+| `/v1/fix-apply` | POST | Write a unified diff to a local working tree via `git apply`. Body: `{ sourceDir, diff }`. Runs `git apply --check` first. |
+
+### BYOK key storage
+
+Only mounted when `PATHLIGHT_SEAL_KEY` is set. See [docs/byok-keys.md](docs/byok-keys.md).
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/projects/:id/keys` | GET | List keys — masked metadata only |
+| `/v1/projects/:id/keys` | POST | Create a key: `{ kind, provider, label, value }` |
+| `/v1/projects/:id/keys/:keyId` | PUT | Atomically rotate |
+| `/v1/projects/:id/keys/:keyId` | DELETE | Revoke immediately |
 
 ### Projects
 
@@ -429,6 +495,9 @@ individual amber-highlighted rows in the waterfall.
 | `REPLAY_BASE_URL` | — | Base URL for OpenAI-compatible replay (e.g. `https://gateway.provara.xyz`). Accepts with or without trailing `/v1` |
 | `OPENAI_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is OpenAI-compatible |
 | `ANTHROPIC_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is Anthropic |
+| `PATHLIGHT_SEAL_KEY` | — | 32-byte base64 master key for the BYOK encrypted key store. When set, the collector mounts `/v1/projects/:id/keys`. Fail-stops on malformed input. |
+| `PATHLIGHT_LLM_API_KEY` | — | BYOK LLM key consumed by `pathlight fix`. Required for the CLI. |
+| `PATHLIGHT_GIT_TOKEN` | — | Read-only git token consumed by `pathlight fix --git-url`. Never logged. |
 
 ---
 
@@ -459,6 +528,12 @@ npm run db:retire -w packages/db -- --delete ../collector/pathlight.db  # Delete
 # CLIs (after install)
 pathlight share <trace-id> --out report.html
 pathlight-eval specs/my-checks.mjs --base-url http://localhost:4100
+
+# Code-fixing agent (BYOK)
+export PATHLIGHT_LLM_API_KEY=sk-ant-...
+pathlight fix <trace-id> --source-dir . --apply
+pathlight fix <trace-id> --git-url https://github.com/acme/repo.git --provider openai
+pathlight fix <trace-id> --bisect --from <good> --to <bad> --git-url <url>
 ```
 
 ---
@@ -476,9 +551,14 @@ pathlight-eval specs/my-checks.mjs --base-url http://localhost:4100
 ## Self-hosted philosophy
 
 Everything runs locally by default. SQLite file, single collector process,
-no external services required. API keys (for replay) read from env vars or
-stay in the browser's `localStorage` — never sent to any third-party beyond
-the LLM provider itself.
+no external services required. API keys (for replay and BYOK fix) read from
+env vars, from the browser's `localStorage`, or from the encrypted
+libsodium-backed key store — never sent to any third-party beyond the LLM
+provider itself.
+
+**BYOK is a hard line.** The code-fixing agent, LLM replay, and OpenClaw
+plugin all use the user's own keys. Pathlight never acts as an inference
+proxy and never stores plaintext keys at rest.
 
 ## License
 
