@@ -7,6 +7,7 @@ import {
 } from "./types.js";
 import { fetchTrace } from "./collector-client.js";
 import { createPathSourceReader, type SourceReader } from "./source/path.js";
+import { createGitSourceReader } from "./source/git.js";
 import { buildPrompt, PROPOSE_FIX_TOOL } from "./prompt.js";
 import { parseFixResponse } from "./diff-parser.js";
 import { createLlmAdapter, DEFAULT_MODELS } from "./llm/index.js";
@@ -27,6 +28,8 @@ export { fetchTrace } from "./collector-client.js";
 export type { TraceRecord, SpanRecord, TraceWithSpans } from "./collector-client.js";
 export { createPathSourceReader } from "./source/path.js";
 export type { FileContent, SourceReader } from "./source/path.js";
+export { createGitSourceReader } from "./source/git.js";
+export type { GitSourceReader, CreateGitSourceReaderOptions } from "./source/git.js";
 export { createLlmAdapter, DEFAULT_MODELS } from "./llm/index.js";
 export type {
   LlmAdapter,
@@ -41,12 +44,12 @@ export type { PromptBuildResult } from "./prompt.js";
 export { parseFixResponse, isUnifiedDiff } from "./diff-parser.js";
 export type { ParsedFix } from "./diff-parser.js";
 
-function createSourceReader(source: FixOptions["source"]): SourceReader {
+async function createSourceReader(source: FixOptions["source"]): Promise<SourceReader> {
   if (source.kind === "path") {
     return createPathSourceReader(source);
   }
   if (source.kind === "git") {
-    throw new FixError("git source is implemented in P2 (#46)");
+    return createGitSourceReader(source);
   }
   throw new FixError(`Unknown source kind: ${String((source as { kind: string }).kind)}`);
 }
@@ -89,7 +92,17 @@ export async function fix(options: FixOptions): Promise<FixResult> {
     // Collector unavailable — keep going, meta-trace is best-effort.
   }
 
-  const reader = createSourceReader(options.source);
+  let reader: SourceReader;
+  try {
+    reader = await createSourceReader(options.source);
+  } catch (err) {
+    const message = err instanceof FixError ? err.message : "Unexpected engine error";
+    await metaTrace.end({
+      status: "failed",
+      error: message,
+    }).catch(() => {});
+    throw err;
+  }
 
   try {
     emit(options, { kind: "fetching-trace" });
