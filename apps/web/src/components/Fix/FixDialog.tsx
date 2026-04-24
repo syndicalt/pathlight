@@ -5,6 +5,7 @@ import { FixForm, type FixFormValue } from "./FixForm";
 import { FixStream, type FixResultPayload } from "./FixStream";
 import { DiffPreview } from "./DiffPreview";
 import { DiffActions } from "./DiffActions";
+import { BisectBanner } from "./BisectBanner";
 
 export interface FixContext {
   traceId: string;
@@ -98,6 +99,12 @@ export function FixDialog({ open, context, onClose }: FixDialogProps) {
 
           {phase.kind === "done" && (
             <div className="space-y-3">
+              {phase.result.regressionSha && (
+                <BisectBanner
+                  regressionSha={phase.result.regressionSha}
+                  parentSha={phase.result.parentSha}
+                />
+              )}
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-2">
                 <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Explanation</p>
                 <p className="text-sm text-zinc-300">{phase.result.explanation}</p>
@@ -108,9 +115,6 @@ export function FixDialog({ open, context, onClose }: FixDialogProps) {
                 sourceDir={phase.form.source.kind === "path" ? phase.form.source.dir : null}
                 traceId={context.traceId}
               />
-              <p className="text-xs text-zinc-600">
-                Download / copy in T7 · bisect banner in T8.
-              </p>
             </div>
           )}
         </div>
