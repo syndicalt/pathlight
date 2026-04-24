@@ -12,3 +12,4 @@
  */
 
 export { loadSealKey, SealKeyError } from "./seal-key.js";
+export { seal, unseal, previewLast4, DecryptionError } from "./seal.js";
