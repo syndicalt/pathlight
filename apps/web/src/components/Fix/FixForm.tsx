@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { KeyPicker } from "./KeyPicker";
 
 export type SourceMode = "path" | "git";
 export type FixMode = "span" | "trace" | "bisect";
@@ -128,15 +129,24 @@ export function FixForm({ projectId, submitting, onSubmit }: FixFormProps) {
                 required
               />
             </Field>
-            <Field label="Git token (keyId from /settings/keys)">
-              <input
-                type="text"
-                value={gitTokenId}
-                onChange={(e) => setGitTokenId(e.target.value)}
-                placeholder="key_xxx"
-                className={inputClass}
-                required
-              />
+            <Field label="Git token">
+              {projectId ? (
+                <KeyPicker
+                  projectId={projectId}
+                  kind="git"
+                  value={gitTokenId}
+                  onChange={setGitTokenId}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={gitTokenId}
+                  onChange={(e) => setGitTokenId(e.target.value)}
+                  placeholder="key_xxx"
+                  className={inputClass}
+                  required
+                />
+              )}
             </Field>
             <Field label="Ref (optional, defaults to HEAD)">
               <input
@@ -161,18 +171,25 @@ export function FixForm({ projectId, submitting, onSubmit }: FixFormProps) {
             { value: "openai", label: "OpenAI" },
           ]}
         />
-        <Field label="API key (keyId from /settings/keys)">
-          <input
-            type="text"
-            value={llmKeyId}
-            onChange={(e) => setLlmKeyId(e.target.value)}
-            placeholder="key_xxx"
-            className={inputClass}
-            required
-          />
-          <p className="text-[11px] text-zinc-500 mt-1">
-            T3 replaces this with a live picker sourced from /v1/projects/&lt;id&gt;/keys.
-          </p>
+        <Field label="API key">
+          {projectId ? (
+            <KeyPicker
+              projectId={projectId}
+              kind="llm"
+              provider={provider}
+              value={llmKeyId}
+              onChange={setLlmKeyId}
+            />
+          ) : (
+            <input
+              type="text"
+              value={llmKeyId}
+              onChange={(e) => setLlmKeyId(e.target.value)}
+              placeholder="key_xxx"
+              className={inputClass}
+              required
+            />
+          )}
         </Field>
         <Field label="Model (optional)">
           <input
