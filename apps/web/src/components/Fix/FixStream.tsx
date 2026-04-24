@@ -32,8 +32,25 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
   const [closed, setClosed] = useState(false);
   const idRef = useRef(0);
 
+  // Keep callbacks in refs so they don't appear in the effect's deps. The
+  // parent (FixDialog) passes fresh inline closures every render; without
+  // this indirection any unrelated re-render of the dialog would tear
+  // down + abort the in-flight SSE stream. In React StrictMode (Next.js
+  // dev) the abort flips phase → error and unmounts FixStream before the
+  // second mount can complete, so submission appeared to fail instantly.
+  const onResultRef = useRef(onResult);
+  const onFailRef = useRef(onFail);
+  useEffect(() => {
+    onResultRef.current = onResult;
+    onFailRef.current = onFail;
+  }, [onResult, onFail]);
+
   useEffect(() => {
     const controller = new AbortController();
+    // Distinguish caller-driven aborts (effect cleanup, e.g. on unmount)
+    // from real network/SSE failures so cleanup never reaches onFail.
+    let cleanedUp = false;
+
     const pushProgress = (text: string): void => {
       idRef.current += 1;
       const entry = { id: idRef.current, text };
@@ -65,12 +82,12 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
           }
           case "result": {
             const parsed = safeJson(event.data) as FixResultPayload;
-            onResult(parsed);
+            onResultRef.current(parsed);
             return;
           }
           case "error": {
             const parsed = safeJson(event.data) as { message?: string };
-            onFail(parsed?.message ?? "Fix engine failed");
+            onFailRef.current(parsed?.message ?? "Fix engine failed");
             return;
           }
           case "done": {
@@ -80,13 +97,17 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
         }
       },
       onError: (err) => {
-        onFail(err instanceof Error ? err.message : "Connection error");
+        if (cleanedUp || controller.signal.aborted) return;
+        onFailRef.current(err instanceof Error ? err.message : "Connection error");
       },
       onClose: () => setClosed(true),
     });
 
-    return () => controller.abort();
-  }, [projectId, traceId, form, onResult, onFail]);
+    return () => {
+      cleanedUp = true;
+      controller.abort();
+    };
+  }, [projectId, traceId, form]);
 
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
