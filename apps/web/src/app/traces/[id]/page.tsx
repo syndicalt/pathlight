@@ -7,6 +7,16 @@ import { COLLECTOR_URL, fetchApi, patchApi, pathlightHeaders } from "../../../li
 import { formatDuration, formatTokens } from "../../../lib/format";
 import { FixButton } from "../../../components/Fix/FixButton";
 import { FixDialog, type FixContext } from "../../../components/Fix/FixDialog";
+import { parseTraceTags } from "../../trace-preview";
+import { prepareTraceLoad, rollbackOptimisticReview } from "./trace-load";
+import {
+  persistReplaySettings,
+  replayErrorResult,
+  replayRequestBody,
+  replayResultFromResponse,
+  type ReplayMessage,
+  type ReplayResult,
+} from "./replay-runner";
 
 interface Trace {
   id: string;
@@ -466,8 +476,6 @@ function SpanInspector({ span, onClose, onFix }: { span: Span; onClose: () => vo
   );
 }
 
-interface ReplayMessage { role: string; content: string }
-
 // Multimodal payloads ship `content` as an array of parts ({type:"text", text:"…"},
 // {type:"image_url", ...}). Our editor is text-only, so collapse parts to a string
 // and preserve anything non-textual as a pretty-printed JSON sentinel.
@@ -520,7 +528,7 @@ function ReplayPanel({ span }: { span: Span }) {
   const [apiKey, setApiKey] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{ output: string; durationMs: number; tokens?: string; error?: string } | null>(null);
+  const [result, setResult] = useState<ReplayResult | null>(null);
 
   // Load session-scoped apiKey + stored baseUrl per provider.
   useEffect(() => {
@@ -546,10 +554,7 @@ function ReplayPanel({ span }: { span: Span }) {
 
   const run = async () => {
     if (typeof window !== "undefined") {
-      if (apiKey) sessionStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
-      else sessionStorage.removeItem(`pathlight:replay-key:${provider}`);
-      if (baseUrl) localStorage.setItem(`pathlight:replay-base:${provider}`, baseUrl);
-      else localStorage.removeItem(`pathlight:replay-base:${provider}`);
+      persistReplaySettings({ provider, apiKey, baseUrl }, { sessionStorage, localStorage });
     }
     setRunning(true);
     setResult(null);
@@ -557,27 +562,19 @@ function ReplayPanel({ span }: { span: Span }) {
       const res = await fetch(`${COLLECTOR_URL}/v1/replay/llm`, {
         method: "POST",
         headers: pathlightHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
+        body: JSON.stringify(replayRequestBody({
           provider,
           model,
-          system: system || undefined,
+          system,
           messages,
-          apiKey: apiKey || undefined,
-          baseUrl: baseUrl || undefined,
-        }),
+          apiKey,
+          baseUrl,
+        })),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setResult({ output: "", durationMs: 0, error: JSON.stringify(data.error || data, null, 2) });
-      } else {
-        setResult({
-          output: data.output || "",
-          durationMs: data.durationMs || 0,
-          tokens: data.inputTokens ? `${data.inputTokens}/${data.outputTokens || 0}` : undefined,
-        });
-      }
+      setResult(replayResultFromResponse(res.ok, data));
     } catch (err) {
-      setResult({ output: "", durationMs: 0, error: err instanceof Error ? err.message : String(err) });
+      setResult(replayErrorResult(err));
     } finally {
       setRunning(false);
     }
@@ -728,16 +725,15 @@ export default function TraceDetailPage() {
     setReviewError(null);
     fetchApi<{ trace: Trace; spans: Span[]; events: SpanEvent[] }>(`/v1/traces/${id}`)
       .then((data) => {
-        setTrace(data.trace);
-        setSpans(data.spans);
-        setEvents(data.events);
+        const prepared = prepareTraceLoad(data, new Date().toISOString());
+        setTrace(prepared.trace);
+        setSpans(prepared.spans);
+        setEvents(prepared.events);
 
-        if (data.trace && !data.trace.reviewedAt) {
-          const reviewedAt = new Date().toISOString();
-          setTrace((prev) => (prev ? { ...prev, reviewedAt } : prev));
-          patchApi(`/v1/traces/${id}`, { reviewedAt }).catch((err) => {
+        if (prepared.reviewPatch) {
+          patchApi(`/v1/traces/${id}`, prepared.reviewPatch).catch((err) => {
             setReviewError(err instanceof Error ? err.message : String(err));
-            setTrace((prev) => (prev ? { ...prev, reviewedAt: null } : prev));
+            setTrace((prev) => rollbackOptimisticReview(prev));
           });
         }
       })
@@ -770,7 +766,7 @@ export default function TraceDetailPage() {
   const traceEnd = trace.totalDurationMs ? traceStart + trace.totalDurationMs : Date.now();
   const totalMs = traceEnd - traceStart;
 
-  const tags: string[] = trace.tags ? JSON.parse(trace.tags) : [];
+  const tags = parseTraceTags(trace.tags);
   const eventloomVisualizer = extractEventloomVisualizer(trace);
 
   return (

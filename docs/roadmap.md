@@ -8,7 +8,8 @@ plans when they have clear acceptance criteria.
 
 ### Local-first safety and reliability
 
-Status: mostly shipped; remaining work is broader frontend component coverage.
+Status: mostly shipped; remaining work is incremental frontend coverage as new
+flows land.
 
 This sprint turns the code review findings into product work. The goal is to
 keep Pathlight easy to run locally while making its trust boundaries explicit
@@ -45,11 +46,14 @@ Shipped hardening:
 - Breakpoint streams expose collector runtime identity, and the dashboard warns
   when a collector restart clears paused breakpoint state.
 - Trace-list input previews and tags use tested, malformed-data-safe parsers.
+- Trace loading/review, replay, and fix streaming flows have focused unit and
+  rendered React coverage.
 
 Recommended next order:
 
-1. Add React-level tests for trace loading, replay, and fix streaming flows.
-2. Continue tightening dashboard empty/error states as more integrations land.
+1. Continue tightening dashboard empty/error states as more integrations land.
+2. Add rendered regression coverage alongside each new interactive dashboard
+   flow.
 
 Acceptance criteria:
 

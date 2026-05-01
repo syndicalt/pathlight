@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { COLLECTOR_URL, pathlightHeaders } from "../../lib/api";
 import { openSSE, type SSEEvent } from "../../lib/sse";
 import type { FixFormValue } from "./FixForm";
+import { fixStreamAction } from "./fix-stream-events";
 
 export interface FixResultPayload {
   diff: string;
@@ -72,26 +73,21 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
       headers: pathlightHeaders(),
       signal: controller.signal,
       onEvent: (event: SSEEvent) => {
-        switch (event.event) {
+        const action = fixStreamAction(event);
+        switch (action.kind) {
           case "progress": {
-            pushProgress(progressLine(safeJson(event.data)));
-            return;
-          }
-          case "chunk": {
-            pushProgress("received partial chunk");
+            pushProgress(action.text);
             return;
           }
           case "result": {
-            const parsed = safeJson(event.data) as FixResultPayload;
-            onResultRef.current(parsed);
+            onResultRef.current(action.result);
             return;
           }
           case "error": {
-            const parsed = safeJson(event.data) as { message?: string };
-            onFailRef.current(parsed?.message ?? "Fix engine failed");
+            onFailRef.current(action.message);
             return;
           }
-          case "done": {
+          case "closed": {
             setClosed(true);
             return;
           }
@@ -128,33 +124,4 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
       </div>
     </div>
   );
-}
-
-function progressLine(event: unknown): string {
-  if (!event || typeof event !== "object") return "progress";
-  const e = event as { kind?: string; fileCount?: number; provider?: string; model?: string; sha?: string; depth?: number };
-  switch (e.kind) {
-    case "fetching-trace":
-      return "# fetching trace";
-    case "reading-source":
-      return `# reading source (${e.fileCount ?? 0} file${e.fileCount === 1 ? "" : "s"})`;
-    case "calling-llm":
-      return `# calling ${e.provider ?? ""} ${e.model ?? ""}`.trim();
-    case "parsing-diff":
-      return "# parsing diff";
-    case "bisect-iteration":
-      return `# bisect depth ${e.depth ?? "?"} at ${(e.sha ?? "").slice(0, 7)}`;
-    case "bisect-found":
-      return `# regression found at ${(e.sha ?? "").slice(0, 7)}`;
-    default:
-      return `# ${e.kind ?? "progress"}`;
-  }
-}
-
-function safeJson(data: string): unknown {
-  try {
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
 }
