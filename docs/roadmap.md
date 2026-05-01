@@ -4,6 +4,54 @@ This roadmap tracks high-value integration and product directions. It is not
 a release commitment; items should graduate into issues or implementation
 plans when they have clear acceptance criteria.
 
+## Product Hardening
+
+### Local-first safety and reliability
+
+Status: planned.
+
+This sprint turns the code review findings into product work. The goal is to
+keep Pathlight easy to run locally while making its trust boundaries explicit
+and reducing silent failure modes.
+
+Why it matters:
+
+- Pathlight currently behaves like a local developer tool, but the collector
+  exposes powerful endpoints when it is reachable from a browser or network.
+- The dashboard has a strong BYOK key-storage model for the fix flow, but the
+  replay panel still stores provider keys in browser local storage.
+- Several UI flows fail silently, which makes local debugging feel unreliable
+  even when the collector and SDK are doing the right thing.
+- Trace-list issue detection scans span output across each listed trace, which
+  is acceptable for demos but will degrade as trace volume grows.
+
+Recommended next order:
+
+1. Add collector/dashboard bind-safety controls: default local usage, visible
+   warnings for non-localhost exposure, and an optional shared dashboard token.
+2. Replace replay-panel API-key localStorage with a BYOK-backed or session-only
+   flow that matches the rest of the key-management story.
+3. Improve SDK HTTP errors so JS and Python clients report status codes and
+   sanitized response details instead of blindly parsing JSON.
+4. Add visible dashboard error states for failed fetches, failed review
+   updates, breakpoint stream disconnects, and fix/replay failures.
+5. Move trace-list issue detection toward bounded queries or persisted issue
+   summaries instead of scanning all spans for every listed trace.
+6. Add focused frontend tests for trace loading, replay, fix streaming, trace
+   compare alignment, and diff preview parsing.
+
+Acceptance criteria:
+
+- A user who binds Pathlight outside localhost receives an explicit warning
+  and has a documented option to require a dashboard/collector token.
+- Replay no longer persists raw provider keys in localStorage by default.
+- SDK network and collector errors include the HTTP status and a sanitized
+  message.
+- Dashboard collector failures produce visible UI states instead of only
+  logging to the browser console.
+- The trace list can show issue badges without unbounded span-output scans.
+- Critical dashboard flows have regression coverage.
+
 ## Integration Candidates
 
 ### ComfyUI tracing
