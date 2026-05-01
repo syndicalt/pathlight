@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "pathlight": "./bin/pathlight.js"
+    "pathlight": "bin/pathlight.js"
   },
   "files": [
     "dist",
@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/syndicalt/pathlight.git",
+    "url": "git+https://github.com/syndicalt/pathlight.git",
     "directory": "packages/cli"
   },
   "homepage": "https://github.com/syndicalt/pathlight",
