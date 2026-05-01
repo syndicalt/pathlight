@@ -57,3 +57,32 @@ console.log(result.traceId);
 
 This first bridge works from ComfyUI history. A future custom node or server
 extension can emit live node timing and artifacts as the workflow runs.
+
+## ComfyUI plugin
+
+The `plugin/pathlight` directory is a ComfyUI custom node/server extension.
+Install it by copying or symlinking that directory into ComfyUI's
+`custom_nodes` directory:
+
+```bash
+ln -s ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight \
+  ~/Projects/Personal/ComfyUI/custom_nodes/pathlight
+```
+
+Restart ComfyUI after installing the plugin.
+
+Configuration is environment-variable based:
+
+- `PATHLIGHT_COLLECTOR_URL` defaults to `http://127.0.0.1:4100`
+- `PATHLIGHT_API_KEY` is optional
+- `PATHLIGHT_COMFYUI_AUTO_EXPORT` defaults to `1`; set it to `0` to disable
+  automatic export after each workflow completes
+
+Plugin routes:
+
+- `GET /pathlight/comfyui/config` shows active config and recent exports
+- `GET /pathlight/comfyui/exports` shows recent prompt-to-trace exports
+- `GET /pathlight/comfyui/preview/{prompt_id}` previews the Pathlight trace
+  plan without exporting
+- `POST /pathlight/comfyui/export/{prompt_id}` exports one history item on
+  demand

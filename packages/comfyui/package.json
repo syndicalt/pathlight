@@ -17,11 +17,12 @@
   "files": [
     "dist",
     "fixtures",
+    "plugin",
     "README.md"
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run src",
+    "test": "vitest run src && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s plugin/tests",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
