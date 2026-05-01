@@ -1,0 +1,48 @@
+{
+  "name": "@pathlight/comfyui",
+  "version": "0.3.0",
+  "description": "ComfyUI history exporter for Pathlight traces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "pathlight-comfyui": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run src",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "trace",
+    "debug",
+    "observability",
+    "comfyui"
+  ],
+  "author": "Nicholas Blanchard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syndicalt/pathlight.git",
+    "directory": "packages/comfyui"
+  },
+  "homepage": "https://github.com/syndicalt/pathlight",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
+  }
+}

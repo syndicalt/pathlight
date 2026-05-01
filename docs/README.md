@@ -19,6 +19,8 @@ start, see [../README.md](../README.md).
   `pathlight share`
 - [Eventloom visualizer](eventloom.md) — renders Eventloom Capture,
   Replay, and Handoff panels from trace metadata/output
+- [Roadmap](roadmap.md) — candidate integrations and future product
+  directions
 
 ### Code-fixing
 - [Fix engine](fix.md) — BYOK code-fixing agent: library, CLI, and
@@ -30,6 +32,8 @@ start, see [../README.md](../README.md).
 ### Integrations
 - [OpenTelemetry interop](opentelemetry.md) — OTLP/HTTP ingest, gen_ai
   semantic conventions, attribute mapping
+- [ComfyUI tracing](roadmap.md#comfyui-tracing) — roadmap and first bridge
+  shape for exporting ComfyUI workflow history into Pathlight traces
 - [OpenClaw plugin](openclaw-plugin.md) — first-party OpenClaw tracing
   plugin. Captures agent runs, LLM calls, tools, and sub-agent
   delegation with git provenance.
@@ -48,6 +52,7 @@ start, see [../README.md](../README.md).
 | [`@pathlight/sdk`](../packages/sdk) | npm | TypeScript SDK for instrumenting agents |
 | [`pathlight`](../packages/sdk-python) | PyPI | Python SDK (sync + async) |
 | [`@pathlight/eval`](../packages/eval) | npm | Assertion DSL + `pathlight-eval` CI runner |
+| [`@pathlight/comfyui`](../packages/comfyui) | internal | ComfyUI history exporter for Pathlight traces |
 | [`@pathlight/cli`](../packages/cli) | npm | `pathlight share` + `pathlight fix` CLIs |
 | [`@pathlight/fix`](../packages/fix) | npm | Code-fixing agent core (library) |
 | [`@pathlight/openclaw`](../packages/openclaw-plugin) | npm | OpenClaw tracing plugin |

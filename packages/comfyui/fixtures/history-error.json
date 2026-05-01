@@ -1,0 +1,38 @@
+{
+  "prompt-demo-error": {
+    "prompt": [
+      1,
+      "prompt-demo-error",
+      {
+        "1": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "missing-controlnet-reference.png"
+          }
+        },
+        "2": {
+          "class_type": "KSampler",
+          "inputs": {
+            "seed": 10101,
+            "steps": 18
+          }
+        }
+      },
+      {},
+      ["2"]
+    ],
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_error",
+          {
+            "node_id": "1",
+            "exception_message": "Image file not found: missing-controlnet-reference.png"
+          }
+        ]
+      ]
+    }
+  }
+}

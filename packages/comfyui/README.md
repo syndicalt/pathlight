@@ -1,0 +1,59 @@
+# @pathlight/comfyui
+
+ComfyUI history exporter for Pathlight traces.
+
+The package maps one ComfyUI workflow history item to one Pathlight trace.
+Each prompt node becomes a `chain` span with node inputs, class type, output
+metadata, and execution errors when ComfyUI reports them.
+
+## CLI
+
+```bash
+npm --workspace @pathlight/comfyui run build
+npx pathlight-comfyui --prompt-id <prompt-id> \
+  --comfy-url http://127.0.0.1:8188 \
+  --collector-url http://localhost:4100
+```
+
+For offline or repeatable tests, export a history response first and pass it
+directly:
+
+```bash
+npx pathlight-comfyui \
+  --history-file packages/comfyui/fixtures/history-success.json \
+  --trace-name comfyui-pathlight-success \
+  --collector-url http://localhost:4100
+```
+
+The package also includes `fixtures/history-error.json`, which intentionally
+exports a failed trace. Use it when validating that Pathlight flags the
+failing ComfyUI node and records the node error event:
+
+```bash
+npx pathlight-comfyui \
+  --history-file packages/comfyui/fixtures/history-error.json \
+  --trace-name comfyui-pathlight-error \
+  --collector-url http://localhost:4100
+```
+
+Environment variables:
+
+- `COMFYUI_URL`
+- `PATHLIGHT_COLLECTOR_URL`
+- `PATHLIGHT_API_KEY`
+
+## Library
+
+```ts
+import { exportComfyHistoryToPathlight, fetchComfyHistory } from "@pathlight/comfyui";
+
+const history = await fetchComfyHistory("http://127.0.0.1:8188", "prompt-id");
+const result = await exportComfyHistoryToPathlight(history, {
+  collectorUrl: "http://localhost:4100",
+});
+
+console.log(result.traceId);
+```
+
+This first bridge works from ComfyUI history. A future custom node or server
+extension can emit live node timing and artifacts as the workflow runs.
