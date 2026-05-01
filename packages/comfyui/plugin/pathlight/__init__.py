@@ -10,8 +10,32 @@ from server import PromptServer
 
 from .exporter import build_trace_plan, export_history_to_pathlight
 
-NODE_CLASS_MAPPINGS = {}
-NODE_DISPLAY_NAME_MAPPINGS = {}
+WEB_DIRECTORY = "./web"
+
+
+class PathlightConfig:
+    CATEGORY = "Pathlight"
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("collector_url",)
+    FUNCTION = "run"
+    OUTPUT_NODE = False
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+        }
+
+    def run(self):
+        return (_collector_url(),)
+
+
+NODE_CLASS_MAPPINGS = {
+    "PathlightConfig": PathlightConfig,
+}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "PathlightConfig": "Pathlight Config",
+}
 
 COLLECTOR_URL_ENV = "PATHLIGHT_COLLECTOR_URL"
 API_KEY_ENV = "PATHLIGHT_API_KEY"

@@ -71,6 +71,9 @@ ln -s ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight \
 
 Restart ComfyUI after installing the plugin.
 
+After restart, ComfyUI should expose a `Pathlight Config` node under the
+`Pathlight` category and load the `pathlight.comfyui` frontend extension.
+
 Configuration is environment-variable based:
 
 - `PATHLIGHT_COLLECTOR_URL` defaults to `http://127.0.0.1:4100`
