@@ -52,7 +52,7 @@ start, see [../README.md](../README.md).
 | [`@pathlight/sdk`](../packages/sdk) | npm | TypeScript SDK for instrumenting agents |
 | [`pathlight`](../packages/sdk-python) | PyPI | Python SDK (sync + async) |
 | [`@pathlight/eval`](../packages/eval) | npm | Assertion DSL + `pathlight-eval` CI runner |
-| [`@pathlight/comfyui`](../packages/comfyui) | internal | ComfyUI history exporter for Pathlight traces |
+| [`@pathlight/comfyui`](../packages/comfyui) | npm | ComfyUI history exporter and plugin for Pathlight traces |
 | [`@pathlight/cli`](../packages/cli) | npm | `pathlight share` + `pathlight fix` CLIs |
 | [`@pathlight/fix`](../packages/fix) | npm | Code-fixing agent core (library) |
 | [`@pathlight/openclaw`](../packages/openclaw-plugin) | npm | OpenClaw tracing plugin |

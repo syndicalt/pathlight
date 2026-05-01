@@ -12,12 +12,14 @@
     }
   },
   "bin": {
-    "pathlight-comfyui": "./dist/cli.js"
+    "pathlight-comfyui": "dist/cli.js"
   },
   "files": [
     "dist",
     "fixtures",
-    "plugin",
+    "plugin/pathlight_plugin.py",
+    "plugin/pathlight_support.disabled/exporter.py",
+    "plugin/pathlight_support.disabled/web/pathlight.js",
     "README.md"
   ],
   "scripts": {
@@ -37,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/syndicalt/pathlight.git",
+    "url": "git+https://github.com/syndicalt/pathlight.git",
     "directory": "packages/comfyui"
   },
   "homepage": "https://github.com/syndicalt/pathlight",
