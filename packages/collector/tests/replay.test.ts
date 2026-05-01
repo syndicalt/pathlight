@@ -97,12 +97,22 @@ describe("POST /v1/replay/llm", () => {
     expect(sent!.messages?.[1]).toEqual({ role: "user", content: "hi" });
   });
 
-  it("surfaces upstream errors as 502", async () => {
+  it("surfaces sanitized upstream errors as 502", async () => {
     globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ error: { message: "bad key" } }), { status: 401 })) as typeof fetch;
+      new Response(
+        JSON.stringify({
+          error: {
+            message: `bad key ${"x".repeat(700)}`,
+            type: "invalid_request_error",
+            param: "api_key",
+            raw: "do not leak this",
+          },
+        }),
+        { status: 401, headers: { "x-request-id": "req_123" } },
+      )) as typeof fetch;
 
     const { call } = await buildCollector();
-    const res = await call(
+    const res = await call<{ error: { message: string; type: string; status: number; requestId?: string; raw?: string } }>(
       "/v1/replay/llm",
       jsonPost({
         provider: "openai",
@@ -112,6 +122,11 @@ describe("POST /v1/replay/llm", () => {
       }),
     );
     expect(res.status).toBe(502);
+    expect(res.body.error.status).toBe(401);
+    expect(res.body.error.type).toBe("invalid_request_error");
+    expect(res.body.error.requestId).toBe("req_123");
+    expect(res.body.error.message.length).toBeLessThanOrEqual(500);
+    expect(JSON.stringify(res.body)).not.toContain("do not leak this");
   });
 
   it("proxies anthropic with the right headers", async () => {

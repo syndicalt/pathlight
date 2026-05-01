@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchApi } from "../../../lib/api";
 import { formatDuration, formatTokens } from "../../../lib/format";
 import { diffLines, prettyJson, type DiffLine } from "../../../lib/diff";
+import { alignSpans } from "./align-spans";
 
 interface Trace {
   id: string;
@@ -51,50 +52,6 @@ function delta(a: number | null, b: number | null): { text: string; className: s
   const sign = diff > 0 ? "+" : "";
   const className = Math.abs(pct) < 1 ? "text-zinc-500" : diff > 0 ? "text-amber-400" : "text-emerald-400";
   return { text: `${sign}${pct.toFixed(0)}%`, className };
-}
-
-function alignSpans(left: Span[], right: Span[]): Array<{ a: Span | null; b: Span | null }> {
-  // Align by position in a name-keyed LCS. Spans sharing the same name at the same
-  // sequential rank are paired; unpaired spans show as adds/removes.
-  const leftNames = left.map((s) => s.name);
-  const rightNames = right.map((s) => s.name);
-  const m = leftNames.length;
-  const n = rightNames.length;
-
-  const table: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      table[i][j] = leftNames[i - 1] === rightNames[j - 1]
-        ? table[i - 1][j - 1] + 1
-        : Math.max(table[i - 1][j], table[i][j - 1]);
-    }
-  }
-
-  const pairs: Array<{ a: Span | null; b: Span | null }> = [];
-  let i = m;
-  let j = n;
-  while (i > 0 && j > 0) {
-    if (leftNames[i - 1] === rightNames[j - 1]) {
-      pairs.unshift({ a: left[i - 1], b: right[j - 1] });
-      i--;
-      j--;
-    } else if (table[i - 1][j] >= table[i][j - 1]) {
-      pairs.unshift({ a: left[i - 1], b: null });
-      i--;
-    } else {
-      pairs.unshift({ a: null, b: right[j - 1] });
-      j--;
-    }
-  }
-  while (i > 0) {
-    pairs.unshift({ a: left[i - 1], b: null });
-    i--;
-  }
-  while (j > 0) {
-    pairs.unshift({ a: null, b: right[j - 1] });
-    j--;
-  }
-  return pairs;
 }
 
 function JsonDiff({ left, right }: { left: string | null; right: string | null }) {

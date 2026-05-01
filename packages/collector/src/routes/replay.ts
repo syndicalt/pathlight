@@ -55,15 +55,20 @@ export function createReplayRoutes() {
             temperature: body.temperature,
           }),
         });
-        const data = await res.json();
-        if (!res.ok) return c.json({ error: data }, 502);
+        const data = await readJsonOrText(res);
+        if (!res.ok) return c.json({ error: sanitizeProviderError(data, res) }, 502);
+        const replay = data as {
+          model?: string;
+          content?: Array<{ text?: string }>;
+          usage?: { input_tokens?: number; output_tokens?: number };
+        };
         return c.json({
           provider: "anthropic",
-          model: data.model,
-          output: data.content?.map((c: { text?: string }) => c.text).filter(Boolean).join("\n") || "",
-          raw: data,
-          inputTokens: data.usage?.input_tokens,
-          outputTokens: data.usage?.output_tokens,
+          model: replay.model,
+          output: replay.content?.map((c) => c.text).filter(Boolean).join("\n") || "",
+          raw: replay,
+          inputTokens: replay.usage?.input_tokens,
+          outputTokens: replay.usage?.output_tokens,
           durationMs: Date.now() - started,
         });
       }
@@ -87,20 +92,25 @@ export function createReplayRoutes() {
           max_tokens: body.maxTokens,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) return c.json({ error: data }, 502);
+      const data = await readJsonOrText(res);
+      if (!res.ok) return c.json({ error: sanitizeProviderError(data, res) }, 502);
+      const replay = data as {
+        model?: string;
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
       return c.json({
         provider: "openai",
-        model: data.model,
-        output: data.choices?.[0]?.message?.content ?? "",
-        raw: data,
-        inputTokens: data.usage?.prompt_tokens,
-        outputTokens: data.usage?.completion_tokens,
+        model: replay.model,
+        output: replay.choices?.[0]?.message?.content ?? "",
+        raw: replay,
+        inputTokens: replay.usage?.prompt_tokens,
+        outputTokens: replay.usage?.completion_tokens,
         durationMs: Date.now() - started,
       });
     } catch (err) {
       return c.json(
-        { error: err instanceof Error ? err.message : String(err) },
+        { error: { message: err instanceof Error ? err.message : String(err), type: "replay_proxy_error" } },
         500,
       );
     }
@@ -113,4 +123,56 @@ export function createReplayRoutes() {
 // "https://gateway.provara.xyz/v1" — downstream code appends /v1/<path>.
 function normalizeBase(url: string): string {
   return url.replace(/\/+$/, "").replace(/\/v1$/, "");
+}
+
+async function readJsonOrText(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function sanitizeProviderError(data: unknown, res: Response) {
+  const providerError = extractProviderError(data);
+  return {
+    message: truncate(providerError.message || res.statusText || "Provider request failed", 500),
+    type: providerError.type || "provider_error",
+    status: res.status,
+    requestId: requestIdFromHeaders(res.headers),
+  };
+}
+
+function extractProviderError(data: unknown): { message?: string; type?: string } {
+  if (typeof data === "string") return { message: data };
+  if (!data || typeof data !== "object") return {};
+
+  const record = data as Record<string, unknown>;
+  const error = record.error;
+  if (typeof error === "string") return { message: error };
+  if (error && typeof error === "object") {
+    const err = error as Record<string, unknown>;
+    return {
+      message: typeof err.message === "string" ? err.message : undefined,
+      type: typeof err.type === "string" ? err.type : typeof err.code === "string" ? err.code : undefined,
+    };
+  }
+
+  return {
+    message: typeof record.message === "string" ? record.message : undefined,
+    type: typeof record.type === "string" ? record.type : undefined,
+  };
+}
+
+function requestIdFromHeaders(headers: Headers): string | undefined {
+  return headers.get("x-request-id") ||
+    headers.get("request-id") ||
+    headers.get("cf-ray") ||
+    undefined;
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
 }

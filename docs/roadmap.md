@@ -8,7 +8,7 @@ plans when they have clear acceptance criteria.
 
 ### Local-first safety and reliability
 
-Status: planned.
+Status: mostly shipped; remaining work is broader frontend component coverage.
 
 This sprint turns the code review findings into product work. The goal is to
 keep Pathlight easy to run locally while making its trust boundaries explicit
@@ -25,20 +25,31 @@ Why it matters:
 - Trace-list issue detection scans span output across each listed trace, which
   is acceptable for demos but will degrade as trace volume grows.
 
+Shipped hardening:
+
+- Collector defaults local npm runs to localhost and supports
+  `PATHLIGHT_ACCESS_TOKEN` for `/v1/*` routes.
+- Dashboard requests and SSE streams send the configured collector token.
+- Replay API keys are session-scoped instead of persisted in localStorage.
+- JS and Python SDKs return status-rich collector errors.
+- Trace list/detail and breakpoint streams show visible collector failure
+  states.
+- Trace issue badges use persisted issue summaries instead of scanning span
+  output on every list request.
+- Diff preview parsing has focused unit coverage.
+- Trace compare span alignment is memoized and unit-tested.
+- `/v1/fix-apply` supports `PATHLIGHT_FIX_APPLY_ROOTS` so operators can
+  restrict patch writes to approved working-tree roots.
+- Replay provider errors are normalized and capped before they reach the
+  browser.
+
 Recommended next order:
 
-1. Add collector/dashboard bind-safety controls: default local usage, visible
-   warnings for non-localhost exposure, and an optional shared dashboard token.
-2. Replace replay-panel API-key localStorage with a BYOK-backed or session-only
-   flow that matches the rest of the key-management story.
-3. Improve SDK HTTP errors so JS and Python clients report status codes and
-   sanitized response details instead of blindly parsing JSON.
-4. Add visible dashboard error states for failed fetches, failed review
-   updates, breakpoint stream disconnects, and fix/replay failures.
-5. Move trace-list issue detection toward bounded queries or persisted issue
-   summaries instead of scanning all spans for every listed trace.
-6. Add focused frontend tests for trace loading, replay, fix streaming, trace
-   compare alignment, and diff preview parsing.
+1. Add React-level tests for trace loading, replay, and fix streaming flows.
+2. Add a persisted or externally visible breakpoint lifecycle warning for
+   collector restarts.
+3. Continue tightening structured trace previews and dashboard empty/error
+   states as more integrations land.
 
 Acceptance criteria:
 
