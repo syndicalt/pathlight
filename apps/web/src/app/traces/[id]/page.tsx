@@ -151,14 +151,28 @@ const ISSUE_PATTERN = /\bfail\b|failed|failure|error|exception|timeout|timed out
 function spanHasIssues(span: Span): boolean {
   if (span.status === "failed") return true;
   if (span.error) return true;
-  if (span.output && ISSUE_PATTERN.test(span.output)) return true;
-  if (span.toolResult && ISSUE_PATTERN.test(span.toolResult)) return true;
+  if (textHasIssue(span.output)) return true;
+  if (textHasIssue(span.toolResult)) return true;
   return false;
 }
 
 function parseJson(str: string | null): unknown {
   if (!str) return null;
   try { return JSON.parse(str); } catch { return str; }
+}
+
+function textHasIssue(value: string | null): boolean {
+  if (!value) return false;
+  const parsed = parseJson(value);
+  if (typeof parsed === "string") return ISSUE_PATTERN.test(parsed);
+  return jsonStringValues(parsed).some((text) => ISSUE_PATTERN.test(text));
+}
+
+function jsonStringValues(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(jsonStringValues);
+  if (value && typeof value === "object") return Object.values(value).flatMap(jsonStringValues);
+  return [];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -168,12 +182,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function extractEventloomVisualizer(trace: Trace): EventloomVisualizerModel | null {
   const metadata = parseJson(trace.metadata);
   const output = parseJson(trace.output);
-  if (!isRecord(metadata) || !isRecord(output)) return null;
-  const contract = metadata.visualizer;
-  if (!isRecord(contract) || contract.version !== "eventloom.pathlight.visualizer.v1") return null;
+  if (!isRecord(output)) return null;
+  const contract = isRecord(metadata) ? metadata.visualizer : null;
   const visualizer = output.visualizer;
   if (!isRecord(visualizer)) return null;
   if (!("capture" in visualizer) || !("replay" in visualizer) || !("handoff" in visualizer)) return null;
+  if (isRecord(contract) && contract.version !== "eventloom.pathlight.visualizer.v1") return null;
   return visualizer as EventloomVisualizerModel;
 }
 

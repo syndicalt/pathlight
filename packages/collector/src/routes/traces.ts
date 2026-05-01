@@ -6,6 +6,30 @@ import { eq, desc, sql, and, gte, lte, like } from "@pathlight/db";
 import { nanoid } from "nanoid";
 import { traceEvents, emitTraceEvent, type TraceEvent } from "../events.js";
 
+const ISSUE_PATTERNS = /\bfail\b|failed|failure|error|exception|timeout|timed out|invalid|denied|refused|rejected|incomplete|truncat/i;
+
+function textHasIssue(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const parsed = parseJson(value);
+  if (parsed === null) return ISSUE_PATTERNS.test(value);
+  return jsonStringValues(parsed).some((text) => ISSUE_PATTERNS.test(text));
+}
+
+function parseJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function jsonStringValues(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(jsonStringValues);
+  if (value && typeof value === "object") return Object.values(value).flatMap(jsonStringValues);
+  return [];
+}
+
 export function createTraceRoutes(db: Db) {
   const app = new Hono();
 
@@ -48,13 +72,11 @@ export function createTraceRoutes(db: Db) {
         .where(sql`${spans.traceId} IN (${sql.join(traceIds.map((id) => sql`${id}`), sql`, `)})`)
         .all();
 
-      const ISSUE_PATTERNS = /\bfail\b|failed|failure|error|exception|timeout|timed out|invalid|denied|refused|rejected|incomplete|truncat/i;
-
       for (const span of allSpans) {
         const issues: string[] = [];
         if (span.status === "failed") issues.push("span_failed");
         if (span.error) issues.push("has_error");
-        if (span.output && ISSUE_PATTERNS.test(span.output)) issues.push("issue_in_output");
+        if (textHasIssue(span.output)) issues.push("issue_in_output");
 
         if (issues.length > 0) {
           const existing = issueMap.get(span.traceId) || [];
