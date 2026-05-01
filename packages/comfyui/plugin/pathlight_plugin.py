@@ -10,7 +10,7 @@ from typing import Any
 from aiohttp import web
 from server import PromptServer
 
-WEB_DIRECTORY = "./pathlight/web"
+WEB_DIRECTORY = "./pathlight_support.disabled/web"
 
 COLLECTOR_URL_ENV = "PATHLIGHT_COLLECTOR_URL"
 API_KEY_ENV = "PATHLIGHT_API_KEY"
@@ -22,7 +22,7 @@ _EXPORTS: dict[str, dict[str, Any]] = {}
 
 
 def _load_exporter():
-    exporter_path = os.path.join(os.path.dirname(__file__), "pathlight", "exporter.py")
+    exporter_path = os.path.join(os.path.dirname(__file__), "pathlight_support.disabled", "exporter.py")
     spec = importlib.util.spec_from_file_location("pathlight_comfyui_exporter", exporter_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load Pathlight exporter from {exporter_path}")

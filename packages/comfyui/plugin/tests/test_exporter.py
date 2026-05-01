@@ -3,7 +3,7 @@ from pathlib import Path
 import importlib.util
 import sys
 
-EXPORTER_PATH = Path(__file__).resolve().parents[1] / "pathlight" / "exporter.py"
+EXPORTER_PATH = Path(__file__).resolve().parents[1] / "pathlight_support.disabled" / "exporter.py"
 SPEC = importlib.util.spec_from_file_location("pathlight_exporter", EXPORTER_PATH)
 assert SPEC is not None
 exporter = importlib.util.module_from_spec(SPEC)
