@@ -59,6 +59,78 @@ interface SpanEvent {
   timestamp: string;
 }
 
+interface EventloomVisualizerModel {
+  capture?: {
+    eventCount?: number;
+    eventTypes?: Record<string, number>;
+    events?: EventloomCaptureEvent[];
+  };
+  replay?: {
+    eventCount?: number;
+    integrity?: { ok?: boolean; errors?: unknown[] };
+    projection?: unknown;
+    projectionHash?: string;
+  };
+  handoff?: {
+    goals?: EventloomFact[];
+    tasks?: {
+      active?: EventloomTask[];
+      completed?: EventloomTask[];
+    };
+    telemetry?: {
+      models?: EventloomTelemetry[];
+      tools?: EventloomTelemetry[];
+      reasoning?: EventloomFact[];
+    };
+    verification?: EventloomFact[];
+    observabilityGaps?: string[];
+    nextActions?: string[];
+    projectionErrors?: unknown[];
+  };
+}
+
+interface EventloomCaptureEvent {
+  id?: string;
+  type?: string;
+  actorId?: string;
+  threadId?: string;
+  timestamp?: string;
+  summary?: string;
+  hash?: string;
+  previousHash?: string | null;
+}
+
+interface EventloomTask {
+  id?: string;
+  title?: string;
+  status?: string;
+  actorId?: string;
+  lastEventId?: string;
+}
+
+interface EventloomFact {
+  id?: string;
+  type?: string;
+  actorId?: string;
+  timestamp?: string;
+  summary?: string;
+  confidence?: number;
+}
+
+interface EventloomTelemetry {
+  callId?: string;
+  actorId?: string;
+  provider?: string;
+  modelName?: string;
+  toolName?: string;
+  status?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  totalTokens?: number;
+  exitCode?: number;
+  latencyMs?: number;
+}
+
 const TYPE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   llm: { bg: "bg-blue-900/30", text: "text-blue-300", border: "border-blue-800/50" },
   tool: { bg: "bg-emerald-900/30", text: "text-emerald-300", border: "border-emerald-800/50" },
@@ -89,6 +161,22 @@ function parseJson(str: string | null): unknown {
   try { return JSON.parse(str); } catch { return str; }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function extractEventloomVisualizer(trace: Trace): EventloomVisualizerModel | null {
+  const metadata = parseJson(trace.metadata);
+  const output = parseJson(trace.output);
+  if (!isRecord(metadata) || !isRecord(output)) return null;
+  const contract = metadata.visualizer;
+  if (!isRecord(contract) || contract.version !== "eventloom.pathlight.visualizer.v1") return null;
+  const visualizer = output.visualizer;
+  if (!isRecord(visualizer)) return null;
+  if (!("capture" in visualizer) || !("replay" in visualizer) || !("handoff" in visualizer)) return null;
+  return visualizer as EventloomVisualizerModel;
+}
+
 function JsonBlock({ data, label }: { data: unknown; label: string }) {
   if (data === null || data === undefined) return null;
   const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
@@ -102,6 +190,194 @@ function JsonBlock({ data, label }: { data: unknown; label: string }) {
       </pre>
     </div>
   );
+}
+
+function EventloomVisualizer({ model }: { model: EventloomVisualizerModel }) {
+  const [activePanel, setActivePanel] = useState<"capture" | "replay" | "handoff">("capture");
+  const capture = model.capture ?? {};
+  const replay = model.replay ?? {};
+  const handoff = model.handoff ?? {};
+  const activeTasks = handoff.tasks?.active ?? [];
+  const completedTasks = handoff.tasks?.completed ?? [];
+  const events = capture.events ?? [];
+  const gaps = handoff.observabilityGaps ?? [];
+
+  return (
+    <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <div className="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div>
+          <p className="text-[10px] text-teal-400 uppercase tracking-widest">Eventloom</p>
+          <h2 className="text-sm font-semibold text-zinc-100 mt-1">Capture, Replay, and Handoff</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Event-sourced agent state exported from the trace output.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-right w-full lg:w-auto lg:shrink-0">
+          <Metric label="events" value={String(capture.eventCount ?? replay.eventCount ?? events.length)} />
+          <Metric label="integrity" value={replay.integrity?.ok ? "ok" : "check"} tone={replay.integrity?.ok ? "good" : "warn"} />
+          <Metric label="active" value={String(activeTasks.length)} />
+        </div>
+      </div>
+
+      <div className="px-5 pt-4 flex gap-2 border-b border-zinc-800">
+        {(["capture", "replay", "handoff"] as const).map((panel) => (
+          <button
+            key={panel}
+            type="button"
+            onClick={() => setActivePanel(panel)}
+            className={`cursor-pointer px-3 py-2 text-xs font-medium capitalize border-b-2 transition-colors ${
+              activePanel === panel
+                ? "border-teal-400 text-teal-300"
+                : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
+            }`}
+          >
+            {panel}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-5">
+        {activePanel === "capture" && <EventloomCapturePanel events={events} eventTypes={capture.eventTypes ?? {}} />}
+        {activePanel === "replay" && <EventloomReplayPanel replay={replay} />}
+        {activePanel === "handoff" && (
+          <EventloomHandoffPanel
+            activeTasks={activeTasks}
+            completedTasks={completedTasks}
+            models={handoff.telemetry?.models ?? []}
+            tools={handoff.telemetry?.tools ?? []}
+            reasoning={handoff.telemetry?.reasoning ?? []}
+            verification={handoff.verification ?? []}
+            gaps={gaps}
+            nextActions={handoff.nextActions ?? []}
+            projectionErrors={handoff.projectionErrors ?? []}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "good" | "warn" }) {
+  const color = tone === "good" ? "text-emerald-300" : tone === "warn" ? "text-amber-300" : "text-zinc-100";
+  return (
+    <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 min-w-20">
+      <p className="text-[10px] text-zinc-600 uppercase">{label}</p>
+      <p className={`text-sm font-semibold mt-0.5 ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function EventloomCapturePanel({ events, eventTypes }: { events: EventloomCaptureEvent[]; eventTypes: Record<string, number> }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.7fr)]">
+      <div className="space-y-2">
+        {events.slice(0, 14).map((event, index) => (
+          <div key={event.id ?? index} className="bg-zinc-950/40 border border-zinc-800 rounded px-3 py-2">
+            <div className="flex items-center gap-2">
+              <code className="text-[11px] text-teal-300">{event.type ?? "event.unknown"}</code>
+              <span className="text-[10px] text-zinc-600">{event.actorId ?? "unknown actor"}</span>
+              <span className="ml-auto text-[10px] text-zinc-600 font-mono">{event.id}</span>
+            </div>
+            <p className="text-xs text-zinc-300 mt-1">{event.summary ?? "No summary recorded."}</p>
+          </div>
+        ))}
+        {events.length > 14 && (
+          <p className="text-xs text-zinc-500 px-1">{events.length - 14} additional captured events hidden for scanning.</p>
+        )}
+      </div>
+      <div>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2">Event Types</p>
+        <div className="space-y-1.5">
+          {Object.entries(eventTypes).map(([type, count]) => (
+            <div key={type} className="flex items-center justify-between gap-3 text-xs">
+              <code className="text-zinc-400 truncate">{type}</code>
+              <span className="text-zinc-500 font-mono">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventloomReplayPanel({ replay }: { replay: EventloomVisualizerModel["replay"] }) {
+  const integrity = replay?.integrity;
+  return (
+    <div className="space-y-4">
+      <div className={`border rounded-lg p-4 ${integrity?.ok ? "bg-emerald-950/20 border-emerald-800/50" : "bg-amber-950/20 border-amber-800/50"}`}>
+        <p className={`text-xs font-semibold ${integrity?.ok ? "text-emerald-300" : "text-amber-300"}`}>
+          Integrity {integrity?.ok ? "verified" : "needs attention"}
+        </p>
+        <p className="text-xs text-zinc-500 mt-1 font-mono">projectionHash: {replay?.projectionHash ?? "missing"}</p>
+      </div>
+      <JsonBlock data={replay?.projection} label="Replay Projection" />
+      {integrity?.errors && integrity.errors.length > 0 && <JsonBlock data={integrity.errors} label="Integrity Errors" />}
+    </div>
+  );
+}
+
+function EventloomHandoffPanel({
+  activeTasks,
+  completedTasks,
+  models,
+  tools,
+  reasoning,
+  verification,
+  gaps,
+  nextActions,
+  projectionErrors,
+}: {
+  activeTasks: EventloomTask[];
+  completedTasks: EventloomTask[];
+  models: EventloomTelemetry[];
+  tools: EventloomTelemetry[];
+  reasoning: EventloomFact[];
+  verification: EventloomFact[];
+  gaps: string[];
+  nextActions: string[];
+  projectionErrors: unknown[];
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <HandoffList title="Active Tasks" empty="No active tasks." items={activeTasks.map(formatTask)} />
+      <HandoffList title="Completed Tasks" empty="No completed tasks." items={completedTasks.map(formatTask)} />
+      <HandoffList title="Model Telemetry" empty="No model calls recorded." items={models.map(formatTelemetry)} />
+      <HandoffList title="Tool Telemetry" empty="No tool calls recorded." items={tools.map(formatTelemetry)} />
+      <HandoffList title="Reasoning" empty="No reasoning summaries recorded." items={reasoning.map((item) => item.summary ?? item.id ?? "reasoning.summary")} />
+      <HandoffList title="Verification" empty="No verification evidence recorded." items={verification.map((item) => item.summary ?? item.id ?? "verification")} />
+      <HandoffList title="Observability Gaps" empty="No observability gaps." items={gaps} tone={gaps.length ? "warn" : "good"} />
+      <HandoffList title="Next Actions" empty="No next actions." items={nextActions} />
+      {projectionErrors.length > 0 && <div className="lg:col-span-2"><JsonBlock data={projectionErrors} label="Projection Errors" /></div>}
+    </div>
+  );
+}
+
+function HandoffList({ title, items, empty, tone = "default" }: { title: string; items: string[]; empty: string; tone?: "default" | "good" | "warn" }) {
+  const color = tone === "good" ? "text-emerald-300" : tone === "warn" ? "text-amber-300" : "text-zinc-300";
+  return (
+    <div className="bg-zinc-950/40 border border-zinc-800 rounded-lg p-4">
+      <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2">{title}</p>
+      {items.length ? (
+        <ul className="space-y-1.5">
+          {items.map((item, index) => <li key={index} className={`text-xs ${color}`}>{item}</li>)}
+        </ul>
+      ) : (
+        <p className={`text-xs ${color}`}>{empty}</p>
+      )}
+    </div>
+  );
+}
+
+function formatTask(task: EventloomTask): string {
+  return `${task.id ?? "task"} status=${task.status ?? "unknown"}${task.title ? ` - ${task.title}` : ""}`;
+}
+
+function formatTelemetry(item: EventloomTelemetry): string {
+  const name = item.modelName ?? item.toolName ?? item.callId ?? "telemetry";
+  const status = item.status ? ` status=${item.status}` : "";
+  const tokens = item.totalTokens !== undefined ? ` tokens=${item.totalTokens}` : "";
+  const exitCode = item.exitCode !== undefined ? ` exitCode=${item.exitCode}` : "";
+  return `${name}${status}${tokens}${exitCode}`;
 }
 
 function SpanInspector({ span, onClose, onFix }: { span: Span; onClose: () => void; onFix: () => void }) {
@@ -455,6 +731,7 @@ export default function TraceDetailPage() {
   const totalMs = traceEnd - traceStart;
 
   const tags: string[] = trace.tags ? JSON.parse(trace.tags) : [];
+  const eventloomVisualizer = extractEventloomVisualizer(trace);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -498,6 +775,8 @@ export default function TraceDetailPage() {
           ))}
         </div>
       )}
+
+      {eventloomVisualizer && <EventloomVisualizer model={eventloomVisualizer} />}
 
       {/* Input/Output */}
       <div className="grid grid-cols-2 gap-4">
