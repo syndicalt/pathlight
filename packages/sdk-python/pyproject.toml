@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pathlight"
-version = "0.3.0"
+version = "0.3.3"
 description = "Python SDK for Pathlight — visual debugging and observability for AI agents"
 readme = "README.md"
 requires-python = ">=3.10"
