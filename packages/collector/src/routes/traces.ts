@@ -5,39 +5,7 @@ import { traces, spans, events, scores } from "@pathlight/db";
 import { eq, desc, sql, and, gte, lte, like } from "@pathlight/db";
 import { nanoid } from "nanoid";
 import { traceEvents, emitTraceEvent, type TraceEvent } from "../events.js";
-
-const ISSUE_PATTERNS = /\bfail\b|failed|failure|error|exception|timeout|timed out|invalid|denied|refused|rejected|incomplete|truncat/i;
-
-function textHasIssue(value: string | null | undefined): boolean {
-  if (!value) return false;
-  const parsed = parseJson(value);
-  if (parsed === null) return ISSUE_PATTERNS.test(value);
-  return jsonStringValues(parsed).some((text) => ISSUE_PATTERNS.test(text));
-}
-
-function isEventloomSpan(metadata: string | null | undefined): boolean {
-  if (!metadata) return false;
-  const parsed = parseJson(metadata);
-  return !!parsed &&
-    typeof parsed === "object" &&
-    !Array.isArray(parsed) &&
-    (parsed as Record<string, unknown>).source === "eventloom";
-}
-
-function parseJson(value: string): unknown | null {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-function jsonStringValues(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.flatMap(jsonStringValues);
-  if (value && typeof value === "object") return Object.values(value).flatMap(jsonStringValues);
-  return [];
-}
+import { formatTraceIssues, recomputeTraceIssues } from "../issues.js";
 
 export function createTraceRoutes(db: Db) {
   const app = new Hono();
@@ -70,41 +38,9 @@ export function createTraceRoutes(db: Db) {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .get();
 
-    // Enrich with span-level issue detection
-    const traceIds = rows.map((r) => r.id);
-    const issueMap = new Map<string, string[]>();
-
-    if (traceIds.length > 0) {
-      const allSpans = await db
-        .select({
-          traceId: spans.traceId,
-          output: spans.output,
-          error: spans.error,
-          status: spans.status,
-          metadata: spans.metadata,
-        })
-        .from(spans)
-        .where(sql`${spans.traceId} IN (${sql.join(traceIds.map((id) => sql`${id}`), sql`, `)})`)
-        .all();
-
-      for (const span of allSpans) {
-        const issues: string[] = [];
-        if (span.status === "failed") issues.push("span_failed");
-        if (span.error) issues.push("has_error");
-        if (!isEventloomSpan(span.metadata) && textHasIssue(span.output)) issues.push("issue_in_output");
-
-        if (issues.length > 0) {
-          const existing = issueMap.get(span.traceId) || [];
-          existing.push(...issues);
-          issueMap.set(span.traceId, existing);
-        }
-      }
-    }
-
     const enriched = rows.map((r) => ({
       ...r,
-      issues: [...new Set(issueMap.get(r.id) || [])],
-      hasIssues: issueMap.has(r.id) || r.status === "failed" || !!r.error,
+      ...formatTraceIssues(r),
     }));
 
     return c.json({ traces: enriched, total: total?.count || 0, limit, offset });
@@ -236,7 +172,7 @@ export function createTraceRoutes(db: Db) {
     }).run();
 
     const created = await db.select().from(traces).where(eq(traces.id, id)).get();
-    if (created) emitTraceEvent("trace.created", created);
+    if (created) emitTraceEvent("trace.created", { ...created, ...formatTraceIssues(created) });
 
     return c.json({ id }, 201);
   });
@@ -275,7 +211,7 @@ export function createTraceRoutes(db: Db) {
       await db.update(traces).set(updates).where(eq(traces.id, id)).run();
     }
 
-    const updated = await db.select().from(traces).where(eq(traces.id, id)).get();
+    const updated = await recomputeTraceIssues(db, id);
     if (updated) emitTraceEvent("trace.updated", updated);
     return c.json({ trace: updated });
   });

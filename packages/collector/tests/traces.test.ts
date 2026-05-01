@@ -205,6 +205,30 @@ describe("issue detection", () => {
     expect(res.body.traces[0].issues).toContain("issue_in_output");
   });
 
+  it("clears persisted issue summaries when span output is fixed", async () => {
+    const { call } = await buildCollector();
+    const t = await call<{ id: string }>("/v1/traces", jsonPost({ name: "t" }));
+    const s = await call<{ id: string }>(
+      "/v1/spans",
+      jsonPost({ traceId: t.body.id, name: "step", type: "custom" }),
+    );
+
+    await call(
+      `/v1/spans/${s.body.id}`,
+      jsonPatch({ status: "completed", output: "connection timeout" }),
+    );
+    await call(
+      `/v1/spans/${s.body.id}`,
+      jsonPatch({ status: "completed", output: "connection recovered" }),
+    );
+
+    const res = await call<{
+      traces: Array<{ hasIssues: boolean; issues: string[] }>;
+    }>("/v1/traces");
+    expect(res.body.traces[0].hasIssues).toBe(false);
+    expect(res.body.traces[0].issues).toEqual([]);
+  });
+
   it("does not flag structured output just because it has an error key", async () => {
     const { call } = await buildCollector();
     const t = await call<{ id: string }>("/v1/traces", jsonPost({ name: "eventloom" }));

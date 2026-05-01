@@ -3,6 +3,8 @@ import type { Db } from "@pathlight/db";
 import { spans, events } from "@pathlight/db";
 import { eq } from "@pathlight/db";
 import { nanoid } from "nanoid";
+import { recomputeTraceIssues } from "../issues.js";
+import { emitTraceEvent } from "../events.js";
 
 export function createSpanRoutes(db: Db) {
   const app = new Hono();
@@ -85,6 +87,10 @@ export function createSpanRoutes(db: Db) {
     }
 
     const updated = await db.select().from(spans).where(eq(spans.id, id)).get();
+    if (updated) {
+      const trace = await recomputeTraceIssues(db, updated.traceId);
+      if (trace) emitTraceEvent("trace.updated", trace);
+    }
     return c.json({ span: updated });
   });
 

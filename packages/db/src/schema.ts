@@ -21,6 +21,8 @@ export const traces = sqliteTable("traces", {
     .$defaultFn(() => new Date()),
   completedAt: integer("completed_at", { mode: "timestamp" }),
   reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  hasIssues: integer("has_issues", { mode: "boolean" }).notNull().default(false),
+  issues: text("issues").notNull().default("[]"), // JSON array of issue ids
   // Git provenance — captured by the SDK at trace start so dashboard can
   // attribute latency/cost regressions back to a specific commit.
   gitCommit: text("git_commit"),          // full SHA, e.g. 7a2bf14...

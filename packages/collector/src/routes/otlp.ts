@@ -3,6 +3,7 @@ import type { Db } from "@pathlight/db";
 import { traces, spans } from "@pathlight/db";
 import { eq } from "@pathlight/db";
 import { emitTraceEvent } from "../events.js";
+import { recomputeTraceIssues } from "../issues.js";
 
 /**
  * OTLP/HTTP ingest. Accepts the OTLP protobuf-over-JSON shape that
@@ -134,7 +135,7 @@ export function createOtlpRoutes(db: Db) {
 
       traceIds.push(traceId);
 
-      const stored = await db.select().from(traces).where(eq(traces.id, traceId)).get();
+      const stored = await recomputeTraceIssues(db, traceId);
       if (stored) emitTraceEvent(existing ? "trace.updated" : "trace.created", stored);
     }
 
