@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { COLLECTOR_URL } from "../../lib/api";
+import { COLLECTOR_URL, pathlightHeaders } from "../../lib/api";
 
 export interface ApiKeyOption {
   id: string;
@@ -30,7 +30,9 @@ export function KeyPicker({ projectId, kind, provider, value, onChange }: KeyPic
     let cancelled = false;
     setKeys(null);
     setError(null);
-    fetch(`${COLLECTOR_URL}/v1/projects/${encodeURIComponent(projectId)}/keys`)
+    fetch(`${COLLECTOR_URL}/v1/projects/${encodeURIComponent(projectId)}/keys`, {
+      headers: pathlightHeaders(),
+    })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error(res.status === 404 ? "Key store not enabled on this collector" : `fetch failed: ${res.status}`);

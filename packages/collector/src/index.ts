@@ -11,6 +11,8 @@ import { KeyStore, loadSealKey, SealKeyError } from "@pathlight/keys";
 import { createRouter } from "./router.js";
 
 const port = parseInt(process.env.PORT || "4100", 10);
+const hostname = process.env.PATHLIGHT_HOST || "127.0.0.1";
+const accessToken = process.env.PATHLIGHT_ACCESS_TOKEN;
 
 const db = createDb();
 await runMigrations(db);
@@ -37,10 +39,21 @@ if (process.env.PATHLIGHT_SEAL_KEY !== undefined) {
   }
 }
 
-console.log(`Pathlight collector running on http://localhost:${port}`);
+const isLocalHost = hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+const displayHost = hostname === "0.0.0.0" ? "localhost" : hostname;
+console.log(`Pathlight collector running on http://${displayHost}:${port}`);
+if (!isLocalHost && !accessToken) {
+  console.warn(
+    "[pathlight] Collector is bound outside localhost without PATHLIGHT_ACCESS_TOKEN. " +
+      "Only do this on a trusted network.",
+  );
+}
+if (accessToken) {
+  console.log("[pathlight] access token required for /v1 routes");
+}
 if (keyStore) {
   console.log("[pathlight] BYOK key store enabled");
 }
 
-const app = await createRouter({ db, keyStore });
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" });
+const app = await createRouter({ db, keyStore, accessToken });
+serve({ fetch: app.fetch, port, hostname });

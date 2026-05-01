@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COLLECTOR_URL } from "../../lib/api";
+import { COLLECTOR_URL, pathlightHeaders } from "../../lib/api";
 import { openSSE, type SSEEvent } from "../../lib/sse";
 import type { FixFormValue } from "./FixForm";
 
@@ -69,6 +69,7 @@ export function FixStream({ projectId, traceId, form, onResult, onFail }: FixStr
     void openSSE({
       url: `${COLLECTOR_URL}/v1/fix`,
       body,
+      headers: pathlightHeaders(),
       signal: controller.signal,
       onEvent: (event: SSEEvent) => {
         switch (event.event) {

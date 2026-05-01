@@ -113,6 +113,22 @@ interface PathlightConfig {
   git?: GitContext | null;
 }
 
+interface CreatedResponse {
+  id: string;
+}
+
+export class PathlightHttpError extends Error {
+  status: number;
+  body: unknown;
+
+  constructor(status: number, message: string, body: unknown) {
+    super(message);
+    this.name = "PathlightHttpError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export class Pathlight {
   private baseUrl: string;
   private projectId?: string;
@@ -128,7 +144,7 @@ export class Pathlight {
     this.gitOverride = config.git;
   }
 
-  private async post(path: string, body: unknown) {
+  private async post<T = unknown>(path: string, body: unknown): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;
 
@@ -137,10 +153,10 @@ export class Pathlight {
       headers,
       body: JSON.stringify(body),
     });
-    return res.json();
+    return parseCollectorResponse<T>(res);
   }
 
-  private async patch(path: string, body: unknown) {
+  private async patch<T = unknown>(path: string, body: unknown): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;
 
@@ -149,7 +165,7 @@ export class Pathlight {
       headers,
       body: JSON.stringify(body),
     });
-    return res.json();
+    return parseCollectorResponse<T>(res);
   }
 
   trace(name: string, input?: unknown, options?: { tags?: string[]; metadata?: unknown }): Trace {
@@ -180,7 +196,10 @@ export class Pathlight {
   }): Promise<T> {
     const res = await fetch(`${this.baseUrl}/v1/breakpoints`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+      },
       body: JSON.stringify({
         label: options.label,
         state: options.state ?? null,
@@ -205,7 +224,7 @@ export class Pathlight {
       : this.gitOverride !== undefined
         ? this.gitOverride
         : detectGitContext();
-    return this.post("/v1/traces", {
+    return this.post<CreatedResponse>("/v1/traces", {
       ...data,
       projectId: data.projectId || this.projectId,
       ...(git
@@ -221,7 +240,7 @@ export class Pathlight {
 
   /** @internal */
   async _createSpan(data: Record<string, unknown>) {
-    return this.post("/v1/spans", data);
+    return this.post<CreatedResponse>("/v1/spans", data);
   }
 
   /** @internal */
@@ -233,6 +252,35 @@ export class Pathlight {
   async _createEvent(spanId: string, data: Record<string, unknown>) {
     return this.post(`/v1/spans/${spanId}/events`, data);
   }
+}
+
+async function parseCollectorResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  const body = text.length > 0 ? parseJsonOrText(text) : {};
+  if (!res.ok) {
+    throw new PathlightHttpError(res.status, collectorErrorMessage(res.status, body), body);
+  }
+  return body as T;
+}
+
+function parseJsonOrText(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function collectorErrorMessage(status: number, body: unknown): string {
+  if (typeof body === "object" && body !== null && "error" in body) {
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === "string") return `Pathlight collector error ${status}: ${error}`;
+    if (typeof error === "object" && error !== null && "message" in error) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === "string") return `Pathlight collector error ${status}: ${message}`;
+    }
+  }
+  return `Pathlight collector error ${status}`;
 }
 
 export class Trace {

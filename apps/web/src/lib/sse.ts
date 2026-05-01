@@ -12,6 +12,7 @@ export interface SSEEvent {
 export interface OpenSSEOptions {
   url: string;
   body: unknown;
+  headers?: HeadersInit;
   signal?: AbortSignal;
   onEvent: (event: SSEEvent) => void;
   onError?: (err: unknown) => void;
@@ -23,7 +24,7 @@ export async function openSSE(options: OpenSSEOptions): Promise<void> {
   try {
     response = await fetch(options.url, {
       method: "POST",
-      headers: { "content-type": "application/json", accept: "text/event-stream" },
+      headers: { "content-type": "application/json", accept: "text/event-stream", ...options.headers },
       body: JSON.stringify(options.body),
       signal: options.signal,
     });

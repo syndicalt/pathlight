@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { Pathlight } from "./index.js";
+import { Pathlight, PathlightHttpError } from "./index.js";
 
 // Thin mock of the collector's fetch surface. Every test resets it.
 type Handler = (url: string, init?: RequestInit) => Promise<Response>;
@@ -55,6 +55,19 @@ describe("Pathlight", () => {
     await tl.trace("t").id;
 
     expect(authHeader).toBe("Bearer secret");
+  });
+
+  it("throws status-rich errors for collector failures", async () => {
+    handler = async () =>
+      new Response(JSON.stringify({ error: { message: "unauthorized" } }), { status: 401 });
+
+    const tl = new Pathlight({ baseUrl: "http://x", disableGitContext: true });
+    await expect(tl.trace("t").id).rejects.toMatchObject({
+      name: "PathlightHttpError",
+      status: 401,
+      message: "Pathlight collector error 401: unauthorized",
+    });
+    await expect(tl.trace("t").id).rejects.toBeInstanceOf(PathlightHttpError);
   });
 
   it("omits git fields when disableGitContext is true", async () => {

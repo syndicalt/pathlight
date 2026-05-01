@@ -32,7 +32,9 @@ COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
 COPY apps/web ./apps/web
 
 ARG NEXT_PUBLIC_COLLECTOR_URL=http://localhost:4100
+ARG NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN=
 ENV NEXT_PUBLIC_COLLECTOR_URL=${NEXT_PUBLIC_COLLECTOR_URL}
+ENV NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN=${NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN}
 
 RUN npx turbo build --filter=@pathlight/web
 

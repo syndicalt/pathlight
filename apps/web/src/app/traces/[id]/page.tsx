@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchApi, patchApi } from "../../../lib/api";
+import { COLLECTOR_URL, fetchApi, patchApi, pathlightHeaders } from "../../../lib/api";
 import { formatDuration, formatTokens } from "../../../lib/format";
 import { FixButton } from "../../../components/Fix/FixButton";
 import { FixDialog, type FixContext } from "../../../components/Fix/FixDialog";
@@ -522,13 +522,12 @@ function ReplayPanel({ span }: { span: Span }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ output: string; durationMs: number; tokens?: string; error?: string } | null>(null);
 
-  const COLLECTOR_URL = process.env.NEXT_PUBLIC_COLLECTOR_URL || "http://localhost:4100";
-
-  // Load stored apiKey + baseUrl per provider.
+  // Load session-scoped apiKey + stored baseUrl per provider.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const storedKey = localStorage.getItem(`pathlight:replay-key:${provider}`);
+    const storedKey = sessionStorage.getItem(`pathlight:replay-key:${provider}`);
     const storedBase = localStorage.getItem(`pathlight:replay-base:${provider}`);
+    localStorage.removeItem(`pathlight:replay-key:${provider}`);
     setApiKey(storedKey ?? "");
     setBaseUrl(storedBase ?? "");
   }, [provider]);
@@ -547,7 +546,8 @@ function ReplayPanel({ span }: { span: Span }) {
 
   const run = async () => {
     if (typeof window !== "undefined") {
-      if (apiKey) localStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
+      if (apiKey) sessionStorage.setItem(`pathlight:replay-key:${provider}`, apiKey);
+      else sessionStorage.removeItem(`pathlight:replay-key:${provider}`);
       if (baseUrl) localStorage.setItem(`pathlight:replay-base:${provider}`, baseUrl);
       else localStorage.removeItem(`pathlight:replay-base:${provider}`);
     }
@@ -556,7 +556,7 @@ function ReplayPanel({ span }: { span: Span }) {
     try {
       const res = await fetch(`${COLLECTOR_URL}/v1/replay/llm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: pathlightHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           provider,
           model,

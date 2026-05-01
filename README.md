@@ -527,7 +527,10 @@ individual amber-highlighted rows in the waterfall.
 | `DATABASE_URL` | `file:pathlight.db` | SQLite or Turso URL |
 | `DATABASE_AUTH_TOKEN` | — | Turso auth token |
 | `PORT` | `4100` | Collector port |
+| `PATHLIGHT_HOST` | `127.0.0.1` | Collector bind host. Docker sets `0.0.0.0`; local npm runs stay localhost-only by default. |
+| `PATHLIGHT_ACCESS_TOKEN` | — | Optional shared token required for `/v1/*` collector routes. Set this before exposing the collector beyond localhost. |
 | `NEXT_PUBLIC_COLLECTOR_URL` | `http://localhost:4100` | Collector URL (browser) |
+| `NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN` | — | Dashboard build-time token sent to collectors protected by `PATHLIGHT_ACCESS_TOKEN`. |
 | `PATHLIGHT_URL` | `http://localhost:4100` | Collector URL for CLI (`pathlight`, `pathlight-eval`) |
 | `REPLAY_API_KEY` | — | Generic server-side key for `/v1/replay/llm` — works with OpenAI, Anthropic, or any OpenAI-compatible gateway |
 | `REPLAY_BASE_URL` | — | Base URL for OpenAI-compatible replay (e.g. `https://gateway.provara.xyz`). Accepts with or without trailing `/v1` |
@@ -589,8 +592,10 @@ pathlight fix <trace-id> --bisect --from <good> --to <bad> --git-url <url>
 ## Self-hosted philosophy
 
 Everything runs locally by default. SQLite file, single collector process,
-no external services required. API keys (for replay and BYOK fix) read from
-env vars, from the browser's `localStorage`, or from the encrypted
+no external services required. The collector binds to `127.0.0.1` for local
+npm runs. If you bind it outside localhost, set `PATHLIGHT_ACCESS_TOKEN` and
+pass the same value to SDKs or the dashboard build. API keys (for replay and
+BYOK fix) read from env vars, browser session state, or the encrypted
 libsodium-backed key store — never sent to any third-party beyond the LLM
 provider itself.
 

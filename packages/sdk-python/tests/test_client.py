@@ -5,7 +5,7 @@ import json
 import pytest
 from pytest_httpx import HTTPXMock
 
-from pathlight import Pathlight, GitContext
+from pathlight import Pathlight, GitContext, PathlightHTTPError
 
 
 BASE = "http://localhost:4100"
@@ -64,6 +64,22 @@ def test_project_id_forwarded(httpx_mock: HTTPXMock) -> None:
 
     body = json.loads(httpx_mock.get_requests()[0].content)
     assert body["projectId"] == "proj_42"
+
+
+def test_http_error_includes_status_and_sanitized_body(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        url=f"{BASE}/v1/traces",
+        json={"error": {"message": "unauthorized"}},
+        status_code=401,
+    )
+
+    pl = Pathlight(base_url=BASE, disable_git_context=True)
+    with pytest.raises(PathlightHTTPError) as exc:
+        pl.trace("t")
+
+    assert exc.value.status_code == 401
+    assert str(exc.value) == "Pathlight collector error 401: unauthorized"
+    assert exc.value.body == {"error": {"message": "unauthorized"}}
 
 
 def test_trace_accumulates_tokens_and_cost(httpx_mock: HTTPXMock) -> None:

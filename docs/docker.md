@@ -100,6 +100,21 @@ NEXT_PUBLIC_COLLECTOR_URL=https://traces.example.com docker compose up -d --buil
 `NEXT_PUBLIC_*` env vars are baked in at Next.js build time, so any
 change requires rebuilding the web image.
 
+## Access token
+
+Docker binds the collector to `0.0.0.0` inside the container so the host port
+mapping works. If the stack is reachable beyond your local machine, set a
+shared token:
+
+```bash
+PATHLIGHT_ACCESS_TOKEN="$(openssl rand -hex 24)" docker compose up -d --build
+```
+
+The collector requires that token on `/v1/*` routes. The dashboard receives it
+as `NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN` at build time through
+`docker-compose.yml`. SDK and CLI clients can send the same value as their
+Pathlight API key.
+
 ## Upgrading
 
 ```bash

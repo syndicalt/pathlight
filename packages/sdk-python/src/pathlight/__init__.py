@@ -14,7 +14,7 @@ Usage::
 """
 from __future__ import annotations
 
-from .client import Pathlight, Trace, Span, AsyncPathlight, AsyncTrace, AsyncSpan
+from .client import Pathlight, Trace, Span, AsyncPathlight, AsyncTrace, AsyncSpan, PathlightHTTPError
 from .git import GitContext
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "AsyncPathlight",
     "AsyncTrace",
     "AsyncSpan",
+    "PathlightHTTPError",
     "GitContext",
 ]
 

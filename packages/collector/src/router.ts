@@ -15,6 +15,7 @@ import { createKeyRoutes } from "./routes/keys.js";
 interface RouterContext {
   db: Db;
   keyStore?: KeyStore;
+  accessToken?: string;
 }
 
 export async function createRouter(ctx: RouterContext) {
@@ -25,6 +26,23 @@ export async function createRouter(ctx: RouterContext) {
     origin: "*",
     exposeHeaders: ["X-Total-Count"],
   }));
+
+  if (ctx.accessToken) {
+    app.use("/v1/*", async (c, next) => {
+      const authorization = c.req.header("authorization");
+      const pathlightToken = c.req.header("x-pathlight-token");
+      const queryToken = c.req.query("access_token");
+      if (
+        authorization === `Bearer ${ctx.accessToken}` ||
+        pathlightToken === ctx.accessToken ||
+        queryToken === ctx.accessToken
+      ) {
+        return next();
+      }
+
+      return c.json({ error: { message: "unauthorized" } }, 401);
+    });
+  }
 
   // API routes
   app.route("/v1/traces", createTraceRoutes(ctx.db));

@@ -117,10 +117,11 @@ Priority order for both credentials:
    works with any provider (OpenAI-compatible gateway, Anthropic, or vanilla OpenAI)
 3. Provider-specific env vars (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 
-The dashboard persists both per-request values in `localStorage` under
-`pathlight:replay-key:<provider>` and `pathlight:replay-base:<provider>`
-so you don't re-type them. They're only sent along the collector →
-provider chain.
+The dashboard keeps per-request API keys in `sessionStorage` under
+`pathlight:replay-key:<provider>` so they clear with the browser tab/session.
+It still persists non-secret base URLs in `localStorage` under
+`pathlight:replay-base:<provider>`. Replay keys are only sent along the
+collector → provider chain.
 
 ### Using an OpenAI-compatible gateway (Provara, Groq, Together, Ollama…)
 

@@ -19,6 +19,41 @@ TraceStatus = Literal["running", "completed", "failed", "cancelled"]
 SpanStatus = Literal["running", "completed", "failed"]
 
 
+class PathlightHTTPError(RuntimeError):
+    """Collector request failed with a non-2xx response."""
+
+    def __init__(self, status_code: int, message: str, body: Any) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.body = body
+
+
+def _parse_response(resp: httpx.Response) -> dict[str, Any]:
+    body: Any
+    if resp.content:
+        try:
+            body = resp.json()
+        except ValueError:
+            body = resp.text
+    else:
+        body = {}
+
+    if resp.is_error:
+        raise PathlightHTTPError(resp.status_code, _error_message(resp.status_code, body), body)
+
+    return body if isinstance(body, dict) else {}
+
+
+def _error_message(status_code: int, body: Any) -> str:
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, str):
+            return f"Pathlight collector error {status_code}: {error}"
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            return f"Pathlight collector error {status_code}: {error['message']}"
+    return f"Pathlight collector error {status_code}"
+
+
 # ---------------------- sync ----------------------
 
 
@@ -146,13 +181,11 @@ class Pathlight:
 
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         resp = self._client.post(path, json=body, headers=self._headers())
-        resp.raise_for_status()
-        return resp.json() if resp.content else {}
+        return _parse_response(resp)
 
     def _patch(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         resp = self._client.patch(path, json=body, headers=self._headers())
-        resp.raise_for_status()
-        return resp.json() if resp.content else {}
+        return _parse_response(resp)
 
 
 class Trace:
@@ -469,13 +502,11 @@ class AsyncPathlight:
 
     async def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         resp = await self._client.post(path, json=body, headers=self._headers())
-        resp.raise_for_status()
-        return resp.json() if resp.content else {}
+        return _parse_response(resp)
 
     async def _patch(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         resp = await self._client.patch(path, json=body, headers=self._headers())
-        resp.raise_for_status()
-        return resp.json() if resp.content else {}
+        return _parse_response(resp)
 
 
 class AsyncTrace:

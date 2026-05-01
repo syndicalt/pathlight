@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { COLLECTOR_URL } from "../lib/api";
+import { COLLECTOR_URL, PATHLIGHT_ACCESS_TOKEN, pathlightHeaders } from "../lib/api";
 
 interface Breakpoint {
   id: string;
@@ -23,7 +23,10 @@ export function BreakpointsPanel() {
     let source: EventSource | null = null;
 
     const connect = () => {
-      source = new EventSource(`${COLLECTOR_URL}/v1/breakpoints/stream`);
+      const token = PATHLIGHT_ACCESS_TOKEN
+        ? `?access_token=${encodeURIComponent(PATHLIGHT_ACCESS_TOKEN)}`
+        : "";
+      source = new EventSource(`${COLLECTOR_URL}/v1/breakpoints/stream${token}`);
 
       source.addEventListener("snapshot", (e) => {
         try {
@@ -160,7 +163,7 @@ function BreakpointDetail({ bp }: { bp: Breakpoint }) {
         : { state: overrideState };
       const res = await fetch(`${COLLECTOR_URL}/v1/breakpoints/${bp.id}/resume`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: pathlightHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -174,7 +177,10 @@ function BreakpointDetail({ bp }: { bp: Breakpoint }) {
   const cancel = async () => {
     setBusy(true);
     try {
-      await fetch(`${COLLECTOR_URL}/v1/breakpoints/${bp.id}/cancel`, { method: "POST" });
+      await fetch(`${COLLECTOR_URL}/v1/breakpoints/${bp.id}/cancel`, {
+        method: "POST",
+        headers: pathlightHeaders(),
+      });
     } finally {
       setBusy(false);
     }

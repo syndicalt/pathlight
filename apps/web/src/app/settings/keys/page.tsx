@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { COLLECTOR_URL } from "../../../lib/api";
+import { COLLECTOR_URL, pathlightHeaders } from "../../../lib/api";
 
 interface ApiKey {
   id: string;
@@ -16,7 +16,9 @@ interface ApiKey {
 }
 
 async function listKeys(projectId: string): Promise<ApiKey[]> {
-  const res = await fetch(`${COLLECTOR_URL}/v1/projects/${projectId}/keys`);
+  const res = await fetch(`${COLLECTOR_URL}/v1/projects/${projectId}/keys`, {
+    headers: pathlightHeaders(),
+  });
   if (!res.ok) throw new Error(`list failed: ${res.status}`);
   const body = (await res.json()) as { keys: ApiKey[] };
   return body.keys;
@@ -25,7 +27,7 @@ async function listKeys(projectId: string): Promise<ApiKey[]> {
 async function createKey(projectId: string, input: Omit<ApiKey, "id" | "projectId" | "preview" | "createdAt" | "lastUsedAt"> & { value: string }): Promise<void> {
   const res = await fetch(`${COLLECTOR_URL}/v1/projects/${projectId}/keys`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: pathlightHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(input),
   });
   if (!res.ok) {
@@ -41,7 +43,7 @@ async function rotateKey(
 ): Promise<void> {
   const res = await fetch(`${COLLECTOR_URL}/v1/projects/${projectId}/keys/${keyId}`, {
     method: "PUT",
-    headers: { "content-type": "application/json" },
+    headers: pathlightHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`rotate failed: ${res.status}`);
@@ -50,6 +52,7 @@ async function rotateKey(
 async function deleteKey(projectId: string, keyId: string): Promise<void> {
   const res = await fetch(`${COLLECTOR_URL}/v1/projects/${projectId}/keys/${keyId}`, {
     method: "DELETE",
+    headers: pathlightHeaders(),
   });
   if (!res.ok) throw new Error(`delete failed: ${res.status}`);
 }

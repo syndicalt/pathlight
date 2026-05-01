@@ -25,6 +25,10 @@ services:
     environment:
       - DATABASE_URL=file:/data/pathlight.db
       - PORT=4100
+      # Docker needs a public container bind. Set PATHLIGHT_ACCESS_TOKEN below
+      # when exposing this stack beyond your local machine.
+      - PATHLIGHT_HOST=0.0.0.0
+      - PATHLIGHT_ACCESS_TOKEN=${PATHLIGHT_ACCESS_TOKEN:-}
       # Optional: enable LLM-span replay from the dashboard. Generic pair works
       # for any OpenAI-compatible gateway (Provara, Groq, Together, Ollama…)
       # and Anthropic; provider-specific pair is a fallback.
@@ -51,6 +55,7 @@ services:
       # host-mapped collector port, which Just Works for most users.
       args:
         NEXT_PUBLIC_COLLECTOR_URL: ${NEXT_PUBLIC_COLLECTOR_URL:-http://localhost:4100}
+        NEXT_PUBLIC_PATHLIGHT_ACCESS_TOKEN: ${PATHLIGHT_ACCESS_TOKEN:-}
     image: ghcr.io/syndicalt/pathlight-web:latest
     container_name: pathlight-web
     ports:

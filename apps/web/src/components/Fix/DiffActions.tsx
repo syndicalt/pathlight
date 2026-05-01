@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { COLLECTOR_URL } from "../../lib/api";
+import { COLLECTOR_URL, pathlightHeaders } from "../../lib/api";
 
 interface DiffActionsProps {
   diff: string;
@@ -34,7 +34,7 @@ export function DiffActions({ diff, sourceDir, traceId }: DiffActionsProps) {
     try {
       const res = await fetch(`${COLLECTOR_URL}/v1/fix-apply`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: pathlightHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ sourceDir, diff }),
       });
       if (!res.ok) {
