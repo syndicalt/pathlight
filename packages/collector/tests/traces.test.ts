@@ -231,6 +231,37 @@ describe("issue detection", () => {
     expect(trace?.hasIssues).toBe(false);
     expect(trace?.issues).toEqual([]);
   });
+
+  it("does not keyword-flag Eventloom spans", async () => {
+    const { call } = await buildCollector();
+    const t = await call<{ id: string }>("/v1/traces", jsonPost({ name: "eventloom" }));
+    const s = await call<{ id: string }>(
+      "/v1/spans",
+      jsonPost({
+        traceId: t.body.id,
+        name: "eventloom.deterministic-runner",
+        type: "llm",
+        metadata: { source: "eventloom", exportKind: "model_invocation" },
+      }),
+    );
+    await call(
+      `/v1/spans/${s.body.id}`,
+      jsonPatch({
+        status: "completed",
+        output: {
+          outputSummary: "Projection errors: none. Rejected events: none.",
+          error: null,
+        },
+      }),
+    );
+
+    const res = await call<{
+      traces: Array<{ name: string; hasIssues: boolean; issues: string[] }>;
+    }>("/v1/traces");
+    const trace = res.body.traces.find((item) => item.name === "eventloom");
+    expect(trace?.hasIssues).toBe(false);
+    expect(trace?.issues).toEqual([]);
+  });
 });
 
 describe("GET /v1/traces/commits", () => {

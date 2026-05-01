@@ -15,6 +15,15 @@ function textHasIssue(value: string | null | undefined): boolean {
   return jsonStringValues(parsed).some((text) => ISSUE_PATTERNS.test(text));
 }
 
+function isEventloomSpan(metadata: string | null | undefined): boolean {
+  if (!metadata) return false;
+  const parsed = parseJson(metadata);
+  return !!parsed &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    (parsed as Record<string, unknown>).source === "eventloom";
+}
+
 function parseJson(value: string): unknown | null {
   try {
     return JSON.parse(value);
@@ -67,7 +76,13 @@ export function createTraceRoutes(db: Db) {
 
     if (traceIds.length > 0) {
       const allSpans = await db
-        .select({ traceId: spans.traceId, output: spans.output, error: spans.error, status: spans.status })
+        .select({
+          traceId: spans.traceId,
+          output: spans.output,
+          error: spans.error,
+          status: spans.status,
+          metadata: spans.metadata,
+        })
         .from(spans)
         .where(sql`${spans.traceId} IN (${sql.join(traceIds.map((id) => sql`${id}`), sql`, `)})`)
         .all();
@@ -76,7 +91,7 @@ export function createTraceRoutes(db: Db) {
         const issues: string[] = [];
         if (span.status === "failed") issues.push("span_failed");
         if (span.error) issues.push("has_error");
-        if (textHasIssue(span.output)) issues.push("issue_in_output");
+        if (!isEventloomSpan(span.metadata) && textHasIssue(span.output)) issues.push("issue_in_output");
 
         if (issues.length > 0) {
           const existing = issueMap.get(span.traceId) || [];

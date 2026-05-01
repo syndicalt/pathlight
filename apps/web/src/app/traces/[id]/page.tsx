@@ -151,6 +151,7 @@ const ISSUE_PATTERN = /\bfail\b|failed|failure|error|exception|timeout|timed out
 function spanHasIssues(span: Span): boolean {
   if (span.status === "failed") return true;
   if (span.error) return true;
+  if (isEventloomSpan(span)) return false;
   if (textHasIssue(span.output)) return true;
   if (textHasIssue(span.toolResult)) return true;
   return false;
@@ -177,6 +178,11 @@ function jsonStringValues(value: unknown): string[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isEventloomSpan(span: Span): boolean {
+  const metadata = parseJson(span.metadata);
+  return isRecord(metadata) && metadata.source === "eventloom";
 }
 
 function extractEventloomVisualizer(trace: Trace): EventloomVisualizerModel | null {
