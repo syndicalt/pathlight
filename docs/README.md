@@ -17,6 +17,8 @@ start, see [../README.md](../README.md).
   traces, `pathlight-eval` runner
 - [Sharing traces](share.md) — single-file HTML snapshots via
   `pathlight share`
+- [Eventloom visualizer](eventloom.md) — renders Eventloom Capture,
+  Replay, and Handoff panels from trace metadata/output
 
 ### Code-fixing
 - [Fix engine](fix.md) — BYOK code-fixing agent: library, CLI, and
@@ -31,6 +33,8 @@ start, see [../README.md](../README.md).
 - [OpenClaw plugin](openclaw-plugin.md) — first-party OpenClaw tracing
   plugin. Captures agent runs, LLM calls, tools, and sub-agent
   delegation with git provenance.
+- [Eventloom visualizer](eventloom.md) — Pathlight-side view for
+  Eventloom event-sourced agent logs and handoffs
 - [Python SDK](python.md) — mirror of the TS SDK with Pythonic idioms
 
 ### Deployment

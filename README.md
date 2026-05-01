@@ -28,6 +28,7 @@ No more debugging agents with `console.log`.
 | **Code-fixing agent** | BYOK LLM reads your failing trace + source and proposes a unified diff. CLI, dashboard button, `bisect` across commits. | [docs/fix.md](docs/fix.md) |
 | **BYOK key storage** | Encrypted-at-rest LLM keys + git tokens per project. Dashboard picker uses stored IDs; plaintext never touches the browser. | [docs/byok-keys.md](docs/byok-keys.md) |
 | **OpenClaw plugin** | `@pathlight/openclaw` captures OpenClaw agent runs, LLM calls, tool execution, and sub-agent delegation with git provenance. | [docs/openclaw-plugin.md](docs/openclaw-plugin.md) |
+| **Eventloom visualizer** | Dedicated Capture, Replay, and Handoff panels for Eventloom-exported event logs | [docs/eventloom.md](docs/eventloom.md) |
 | **`pathlight share`** | Single-file HTML snapshot of a trace, zero deps to open | [packages/cli/README.md](packages/cli/README.md) |
 | **OpenTelemetry interop** | Collector accepts OTLP/HTTP; any OTel-instrumented app can ship to Pathlight | [docs/opentelemetry.md](docs/opentelemetry.md) |
 | **Python SDK** | `pip install pathlight` — same dashboard features, Pythonic API, sync + async | [docs/python.md](docs/python.md) |
@@ -151,6 +152,12 @@ All shots are captured against the running stack via `scripts/seed-screenshots.m
 2. Attach the HTML to your GitHub issue / Slack thread. They open it in any
    browser — no dashboard, no server, no dependencies.
 
+### "Inspect an Eventloom agent run."
+1. Export the Eventloom log to Pathlight with `eventloom export pathlight`.
+2. Open the trace detail page.
+3. Use the Eventloom panel for Capture, Replay, and Handoff state; use the
+   waterfall below it for spans, timing, and span-level inspection.
+
 ### "Fix this failing trace without leaving the dashboard."
 1. Open the failing trace, click the broken span.
 2. Click **Fix this** in the inspector header. Pick a source (local path or
@@ -192,6 +199,21 @@ Side-by-side with the timeline. Shows:
 - Input / output / tool args / tool result / metadata (formatted JSON)
 - Error details
 - For **LLM spans**: full replay editor — edit messages and re-run
+
+### Eventloom visualizer
+
+When a trace has `metadata.visualizer.version =
+"eventloom.pathlight.visualizer.v1"` and `output.visualizer`, the trace
+detail page renders a dedicated Eventloom panel above the generic trace
+input/output section. The panel has three tabs:
+
+- **Capture** — ordered Eventloom facts and event type counts.
+- **Replay** — integrity status, projection hash, and replay projection.
+- **Handoff** — task state, telemetry, verification evidence,
+  observability gaps, and next actions.
+
+See [docs/eventloom.md](docs/eventloom.md) for the export contract and
+local smoke flow.
 
 ### `/commits` regression view
 
