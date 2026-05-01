@@ -8,6 +8,7 @@ import {
   breakpointEvents,
   type Breakpoint,
 } from "../breakpoints.js";
+import { getCollectorRuntime } from "../runtime.js";
 
 export function createBreakpointRoutes() {
   const app = new Hono();
@@ -51,7 +52,7 @@ export function createBreakpointRoutes() {
   });
 
   app.get("/", (c) => {
-    return c.json({ breakpoints: listBreakpoints() });
+    return c.json({ breakpoints: listBreakpoints(), runtime: getCollectorRuntime() });
   });
 
   app.post("/:id/resume", async (c) => {
@@ -74,7 +75,7 @@ export function createBreakpointRoutes() {
       // Send initial snapshot so the dashboard doesn't have to poll once on load.
       await stream.writeSSE({
         event: "snapshot",
-        data: JSON.stringify({ breakpoints: listBreakpoints() }),
+        data: JSON.stringify({ breakpoints: listBreakpoints(), runtime: getCollectorRuntime() }),
       });
 
       const onAdded = (bp: Breakpoint) => {
@@ -91,7 +92,7 @@ export function createBreakpointRoutes() {
       breakpointEvents.on("cancelled", onCancelled);
 
       const heartbeat = setInterval(() => {
-        stream.writeSSE({ event: "ping", data: "" }).catch(() => {});
+        stream.writeSSE({ event: "ping", data: JSON.stringify({ runtime: getCollectorRuntime() }) }).catch(() => {});
       }, 25_000);
 
       stream.onAbort(() => {

@@ -42,13 +42,13 @@ Shipped hardening:
   restrict patch writes to approved working-tree roots.
 - Replay provider errors are normalized and capped before they reach the
   browser.
+- Breakpoint streams expose collector runtime identity, and the dashboard warns
+  when a collector restart clears paused breakpoint state.
 
 Recommended next order:
 
 1. Add React-level tests for trace loading, replay, and fix streaming flows.
-2. Add a persisted or externally visible breakpoint lifecycle warning for
-   collector restarts.
-3. Continue tightening structured trace previews and dashboard empty/error
+2. Continue tightening structured trace previews and dashboard empty/error
    states as more integrations land.
 
 Acceptance criteria:

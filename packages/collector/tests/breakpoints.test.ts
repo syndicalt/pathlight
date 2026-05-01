@@ -91,11 +91,13 @@ describe("breakpoints", () => {
     expect(res.status).toBe(404);
   });
 
-  it("GET /v1/breakpoints returns empty list initially", async () => {
+  it("GET /v1/breakpoints returns empty list and runtime identity initially", async () => {
     const { call } = await buildCollector();
-    const res = await call<{ breakpoints: unknown[] }>("/v1/breakpoints");
+    const res = await call<{ breakpoints: unknown[]; runtime: { id: string; startedAt: string } }>("/v1/breakpoints");
     expect(res.status).toBe(200);
     expect(res.body.breakpoints).toEqual([]);
+    expect(res.body.runtime.id).toEqual(expect.any(String));
+    expect(res.body.runtime.startedAt).toEqual(expect.any(String));
   });
 
   it("honors timeoutMs (auto-cancel)", async () => {

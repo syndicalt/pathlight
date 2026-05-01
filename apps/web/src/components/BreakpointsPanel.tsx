@@ -13,12 +13,34 @@ interface Breakpoint {
   createdAt: string;
 }
 
+interface CollectorRuntime {
+  id: string;
+  startedAt: string;
+}
+
 export function BreakpointsPanel() {
   const [breakpoints, setBreakpoints] = useState<Breakpoint[]>([]);
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [lifecycleWarning, setLifecycleWarning] = useState<string | null>(null);
   const retryRef = useRef<NodeJS.Timeout | null>(null);
+  const runtimeRef = useRef<CollectorRuntime | null>(null);
+  const disconnectedRef = useRef(false);
+  const breakpointsRef = useRef<Breakpoint[]>([]);
+
+  const replaceBreakpoints = (next: Breakpoint[]) => {
+    breakpointsRef.current = next;
+    setBreakpoints(next);
+  };
+
+  const updateBreakpoints = (updater: (prev: Breakpoint[]) => Breakpoint[]) => {
+    setBreakpoints((prev) => {
+      const next = updater(prev);
+      breakpointsRef.current = next;
+      return next;
+    });
+  };
 
   useEffect(() => {
     let source: EventSource | null = null;
@@ -28,21 +50,35 @@ export function BreakpointsPanel() {
 
       source.addEventListener("snapshot", (e) => {
         try {
-          const data = JSON.parse((e as MessageEvent).data) as { breakpoints: Breakpoint[] };
-          setBreakpoints(data.breakpoints);
+          const data = JSON.parse((e as MessageEvent).data) as { breakpoints: Breakpoint[]; runtime?: CollectorRuntime };
+          const previousRuntime = runtimeRef.current;
+          const currentRuntime = data.runtime ?? null;
+          runtimeRef.current = currentRuntime;
+          const runtimeChanged = Boolean(
+            previousRuntime &&
+              currentRuntime &&
+              previousRuntime.id !== currentRuntime.id,
+          );
+          if (runtimeChanged && disconnectedRef.current && breakpointsRef.current.length > 0) {
+            setLifecycleWarning("Collector restarted and cleared paused breakpoint state. Rerun any workflow that was waiting at a breakpoint.");
+            setOpen(true);
+          }
+          replaceBreakpoints(data.breakpoints);
+          disconnectedRef.current = false;
           setStreamError(null);
         } catch {}
       });
       source.addEventListener("added", (e) => {
         try {
           const bp = JSON.parse((e as MessageEvent).data) as Breakpoint;
-          setBreakpoints((prev) => (prev.some((p) => p.id === bp.id) ? prev : [...prev, bp]));
+          updateBreakpoints((prev) => (prev.some((p) => p.id === bp.id) ? prev : [...prev, bp]));
           setStreamError(null);
+          setLifecycleWarning(null);
           // Auto-open the panel when a new breakpoint arrives.
           setOpen(true);
         } catch {}
       });
-      const removeById = (id: string) => setBreakpoints((prev) => prev.filter((p) => p.id !== id));
+      const removeById = (id: string) => updateBreakpoints((prev) => prev.filter((p) => p.id !== id));
       source.addEventListener("resolved", (e) => {
         try {
           const { id } = JSON.parse((e as MessageEvent).data) as { id: string };
@@ -58,6 +94,7 @@ export function BreakpointsPanel() {
         } catch {}
       });
       source.onerror = () => {
+        disconnectedRef.current = true;
         setStreamError("Breakpoint stream disconnected. Reconnecting…");
         source?.close();
         // Reconnect after a short backoff — the collector may have restarted.
@@ -72,7 +109,7 @@ export function BreakpointsPanel() {
     };
   }, []);
 
-  if (breakpoints.length === 0 && !open && !streamError) return null;
+  if (breakpoints.length === 0 && !open && !streamError && !lifecycleWarning) return null;
 
   const active = breakpoints.find((b) => b.id === activeId) ?? breakpoints[0] ?? null;
 
@@ -91,7 +128,7 @@ export function BreakpointsPanel() {
         </button>
       )}
 
-      {!open && streamError && breakpoints.length === 0 && (
+      {!open && (streamError || lifecycleWarning) && breakpoints.length === 0 && (
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-950 border border-red-800 text-red-200 shadow-2xl text-sm"
@@ -99,7 +136,7 @@ export function BreakpointsPanel() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007M4.5 19.5h15L12 4.5l-7.5 15z" />
           </svg>
-          Breakpoint stream offline
+          {lifecycleWarning ? "Breakpoint state cleared" : "Breakpoint stream offline"}
         </button>
       )}
 
@@ -128,6 +165,12 @@ export function BreakpointsPanel() {
           {streamError && (
             <div className="mx-4 mt-4 rounded-md border border-red-900 bg-red-950/30 px-3 py-2 text-xs text-red-200">
               {streamError}
+            </div>
+          )}
+
+          {lifecycleWarning && (
+            <div className="mx-4 mt-4 rounded-md border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-100">
+              {lifecycleWarning}
             </div>
           )}
 
