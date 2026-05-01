@@ -18,7 +18,7 @@ export function TopNav() {
         <Link href="/" className="text-base font-bold tracking-tight shrink-0">
           <span className="text-blue-400">Path</span>light
         </Link>
-        <span className="text-[10px] text-zinc-600 shrink-0">v0.3.0</span>
+        <span className="text-[10px] text-zinc-600 shrink-0">v0.3.3</span>
         <nav className="ml-auto flex items-center gap-1">
           {LINKS.map((l) => {
             const active = l.match(pathname);
