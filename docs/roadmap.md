@@ -44,12 +44,12 @@ Shipped hardening:
   browser.
 - Breakpoint streams expose collector runtime identity, and the dashboard warns
   when a collector restart clears paused breakpoint state.
+- Trace-list input previews and tags use tested, malformed-data-safe parsers.
 
 Recommended next order:
 
 1. Add React-level tests for trace loading, replay, and fix streaming flows.
-2. Continue tightening structured trace previews and dashboard empty/error
-   states as more integrations land.
+2. Continue tightening dashboard empty/error states as more integrations land.
 
 Acceptance criteria:
 

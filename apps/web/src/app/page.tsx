@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { fetchApi, pathlightEventSourceUrl } from "../lib/api";
 import { formatDuration, formatTokens, formatTimestamp } from "../lib/format";
+import { parseTraceTags, traceInputPreview } from "./trace-preview";
 
 interface Trace {
   id: string;
@@ -180,20 +181,8 @@ function TracesPageInner() {
         <div className="space-y-2">
           {filtered.map((trace) => {
             const style = STATUS_STYLES[trace.status] || STATUS_STYLES.cancelled;
-            const tags: string[] = trace.tags ? JSON.parse(trace.tags) : [];
-            let inputPreview = "";
-            try {
-              const parsed = JSON.parse(trace.input || "{}");
-              inputPreview =
-                typeof parsed === "string"
-                  ? parsed
-                  : Object.values(parsed)
-                      .map((v) => (typeof v === "string" ? v : JSON.stringify(v)))
-                      .join(" ")
-                      .slice(0, 100);
-            } catch {
-              inputPreview = (trace.input || "").slice(0, 100);
-            }
+            const tags = parseTraceTags(trace.tags);
+            const inputPreview = traceInputPreview(trace.input);
 
             const unreviewed = !trace.reviewedAt;
             const isSelected = selected.includes(trace.id);
