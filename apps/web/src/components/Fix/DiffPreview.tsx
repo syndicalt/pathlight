@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { parseUnifiedDiff, type ParsedFile, type ParsedLine } from "./diff-parser";
 
 /**
  * Unified-diff viewer. Rolls our own instead of pulling
@@ -10,23 +11,6 @@ import { useMemo, useState } from "react";
  * third-party rendering library's color palette / accessibility story
  * before we've seen real usage.
  */
-
-interface ParsedFile {
-  header: string;
-  oldPath: string;
-  newPath: string;
-  hunks: ParsedHunk[];
-}
-
-interface ParsedHunk {
-  header: string;
-  lines: ParsedLine[];
-}
-
-interface ParsedLine {
-  kind: "add" | "remove" | "context" | "meta";
-  text: string;
-}
 
 export function DiffPreview({ diff }: { diff: string }) {
   const files = useMemo(() => parseUnifiedDiff(diff), [diff]);
@@ -125,64 +109,4 @@ function lineText(kind: ParsedLine["kind"]): string {
     default:
       return "text-zinc-300";
   }
-}
-
-function parseUnifiedDiff(diff: string): ParsedFile[] {
-  const files: ParsedFile[] = [];
-  const lines = diff.split("\n");
-  let i = 0;
-
-  while (i < lines.length) {
-    // Skip anything before the first diff header.
-    if (!lines[i].startsWith("diff --git") && !lines[i].startsWith("--- ")) {
-      i++;
-      continue;
-    }
-
-    const header = lines[i];
-    let oldPath = "";
-    let newPath = "";
-
-    // Accept both "diff --git a/x b/y\n--- a/x\n+++ b/y" and bare "--- a/x\n+++ b/y".
-    if (lines[i].startsWith("diff --git")) i++;
-    // Skip index/mode lines.
-    while (i < lines.length && !lines[i].startsWith("--- ") && !lines[i].startsWith("@@")) {
-      i++;
-    }
-    if (i < lines.length && lines[i].startsWith("--- ")) {
-      oldPath = lines[i].slice(4).replace(/^a\//, "");
-      i++;
-    }
-    if (i < lines.length && lines[i].startsWith("+++ ")) {
-      newPath = lines[i].slice(4).replace(/^b\//, "");
-      i++;
-    }
-
-    const hunks: ParsedHunk[] = [];
-    while (i < lines.length && lines[i].startsWith("@@")) {
-      const hunkHeader = lines[i];
-      i++;
-      const hunkLines: ParsedLine[] = [];
-      while (
-        i < lines.length &&
-        !lines[i].startsWith("@@") &&
-        !lines[i].startsWith("diff --git") &&
-        !lines[i].startsWith("--- ")
-      ) {
-        const text = lines[i];
-        if (text.startsWith("+")) hunkLines.push({ kind: "add", text });
-        else if (text.startsWith("-")) hunkLines.push({ kind: "remove", text });
-        else if (text.startsWith("\\")) hunkLines.push({ kind: "meta", text });
-        else hunkLines.push({ kind: "context", text });
-        i++;
-      }
-      hunks.push({ header: hunkHeader, lines: hunkLines });
-    }
-
-    if (oldPath || newPath || hunks.length > 0) {
-      files.push({ header, oldPath, newPath: newPath || oldPath, hunks });
-    }
-  }
-
-  return files;
 }

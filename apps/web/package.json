@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --port 3100",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
     "next": "^15.5.0",
@@ -18,6 +19,7 @@
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }

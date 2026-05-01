@@ -167,6 +167,11 @@ function CompareTracesInner() {
       .finally(() => setLoading(false));
   }, [aId, bId]);
 
+  const pairs = useMemo(() => {
+    if (!a || !b) return [];
+    return alignSpans(a.spans, b.spans);
+  }, [a, b]);
+
   if (loading) {
     return <div className="max-w-7xl mx-auto px-6 py-8 text-zinc-500">Loading comparison…</div>;
   }
@@ -179,7 +184,6 @@ function CompareTracesInner() {
     );
   }
 
-  const pairs = alignSpans(a.spans, b.spans);
   const durationDelta = delta(a.trace.totalDurationMs, b.trace.totalDurationMs);
   const tokenDelta = delta(a.trace.totalTokens, b.trace.totalTokens);
   const costDelta = delta(a.trace.totalCost, b.trace.totalCost);
