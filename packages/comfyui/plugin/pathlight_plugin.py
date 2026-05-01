@@ -35,7 +35,7 @@ def _load_exporter():
 _EXPORTER = _load_exporter()
 
 
-class PathlightConfig:
+class PathlightStatus:
     CATEGORY = "Pathlight"
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("collector_url",)
@@ -52,10 +52,10 @@ class PathlightConfig:
 
 
 NODE_CLASS_MAPPINGS = {
-    "PathlightConfig": PathlightConfig,
+    "PathlightStatus": PathlightStatus,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PathlightConfig": "Pathlight Config",
+    "PathlightStatus": "Pathlight Status",
 }
 
 

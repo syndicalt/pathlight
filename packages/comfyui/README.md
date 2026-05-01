@@ -76,8 +76,10 @@ cp -R ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight_support.di
 
 Restart ComfyUI after installing the plugin.
 
-After restart, ComfyUI should expose a `Pathlight Config` node under the
+After restart, ComfyUI should expose a `Pathlight Status` node under the
 `Pathlight` category and load the `pathlight.comfyui` frontend extension.
+The status node is optional. Auto-export runs from the backend plugin even
+when the node is not added to a workflow.
 
 Configuration is environment-variable based:
 

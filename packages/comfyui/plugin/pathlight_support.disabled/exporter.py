@@ -32,13 +32,17 @@ def build_trace_plan(history_envelope: dict[str, Any], trace_name: str | None = 
     spans = []
     for node_id in sorted(nodes.keys(), key=_node_sort_key):
         node = nodes[node_id]
-        node_failures = failures_by_node.get(str(node_id), [])
         class_type = node.get("class_type") or "unknown"
+        if class_type in {"PathlightConfig", "PathlightStatus"}:
+            continue
+
+        node_failures = failures_by_node.get(str(node_id), [])
+        title = _node_title(node)
         status = "failed" if node_failures else "completed"
         error = "; ".join(failure["message"] for failure in node_failures) or None
         spans.append(
             {
-                "name": f"comfy.node.{class_type}",
+                "name": f"comfy.node.{title or class_type}",
                 "type": "chain",
                 "input": node.get("inputs") or {},
                 "output": outputs.get(str(node_id)),
@@ -50,7 +54,7 @@ def build_trace_plan(history_envelope: dict[str, Any], trace_name: str | None = 
                     "promptId": prompt_id,
                     "nodeId": str(node_id),
                     "classType": class_type,
-                    "title": ((node.get("_meta") or {}).get("title")),
+                    "title": title,
                     "outputNode": str(node_id) in outputs,
                 },
             }
@@ -219,6 +223,16 @@ def _extract_nodes(prompt: Any) -> dict[str, dict[str, Any]]:
         if isinstance(node, dict):
             nodes[str(node_id)] = node
     return nodes
+
+
+def _node_title(node: dict[str, Any]) -> str | None:
+    meta = node.get("_meta")
+    if isinstance(meta, dict) and isinstance(meta.get("title"), str) and meta["title"].strip():
+        return meta["title"].strip()
+    title = node.get("title")
+    if isinstance(title, str) and title.strip():
+        return title.strip()
+    return None
 
 
 def _extract_failures(messages: list[Any]) -> list[dict[str, Any]]:

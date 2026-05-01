@@ -92,6 +92,31 @@ class ExporterTests(unittest.TestCase):
         self.assertEqual(plan["spans"][0]["name"], "comfy.node.CLIPTextEncode")
         self.assertEqual(plan["spans"][1]["metadata"]["outputNode"], True)
 
+    def test_omits_pathlight_status_node_and_uses_titles_for_span_names(self):
+        plan = build_trace_plan(
+            {
+                "prompt-4": {
+                    "prompt": [1, "prompt-4", {}, {}, ["2"]],
+                    "_pathlight_prompt_graph": {
+                        "1": {
+                            "class_type": "OpenAIChatNode",
+                            "inputs": {"prompt": ["3", 0]},
+                            "_meta": {"title": "OpenAI ChatGPT"},
+                        },
+                        "2": {"class_type": "PathlightStatus", "inputs": {}},
+                    },
+                    "outputs": {"1": {"text": ["ok"]}},
+                    "status": {"status_str": "success", "completed": True, "messages": []},
+                }
+            }
+        )
+
+        self.assertEqual(plan["trace"]["metadata"]["nodeCount"], 1)
+        self.assertEqual(len(plan["spans"]), 1)
+        self.assertEqual(plan["spans"][0]["name"], "comfy.node.OpenAI ChatGPT")
+        self.assertEqual(plan["spans"][0]["metadata"]["classType"], "OpenAIChatNode")
+        self.assertEqual(plan["spans"][0]["metadata"]["title"], "OpenAI ChatGPT")
+
 
 if __name__ == "__main__":
     unittest.main()
