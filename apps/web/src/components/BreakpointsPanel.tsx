@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { COLLECTOR_URL, PATHLIGHT_ACCESS_TOKEN, pathlightHeaders } from "../lib/api";
+import { COLLECTOR_URL, pathlightEventSourceUrl, pathlightHeaders } from "../lib/api";
 
 interface Breakpoint {
   id: string;
@@ -17,27 +17,27 @@ export function BreakpointsPanel() {
   const [breakpoints, setBreakpoints] = useState<Breakpoint[]>([]);
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const retryRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let source: EventSource | null = null;
 
     const connect = () => {
-      const token = PATHLIGHT_ACCESS_TOKEN
-        ? `?access_token=${encodeURIComponent(PATHLIGHT_ACCESS_TOKEN)}`
-        : "";
-      source = new EventSource(`${COLLECTOR_URL}/v1/breakpoints/stream${token}`);
+      source = new EventSource(pathlightEventSourceUrl("/v1/breakpoints/stream"));
 
       source.addEventListener("snapshot", (e) => {
         try {
           const data = JSON.parse((e as MessageEvent).data) as { breakpoints: Breakpoint[] };
           setBreakpoints(data.breakpoints);
+          setStreamError(null);
         } catch {}
       });
       source.addEventListener("added", (e) => {
         try {
           const bp = JSON.parse((e as MessageEvent).data) as Breakpoint;
           setBreakpoints((prev) => (prev.some((p) => p.id === bp.id) ? prev : [...prev, bp]));
+          setStreamError(null);
           // Auto-open the panel when a new breakpoint arrives.
           setOpen(true);
         } catch {}
@@ -58,6 +58,7 @@ export function BreakpointsPanel() {
         } catch {}
       });
       source.onerror = () => {
+        setStreamError("Breakpoint stream disconnected. Reconnecting…");
         source?.close();
         // Reconnect after a short backoff — the collector may have restarted.
         retryRef.current = setTimeout(connect, 2000);
@@ -71,7 +72,7 @@ export function BreakpointsPanel() {
     };
   }, []);
 
-  if (breakpoints.length === 0 && !open) return null;
+  if (breakpoints.length === 0 && !open && !streamError) return null;
 
   const active = breakpoints.find((b) => b.id === activeId) ?? breakpoints[0] ?? null;
 
@@ -87,6 +88,18 @@ export function BreakpointsPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {breakpoints.length} paused
+        </button>
+      )}
+
+      {!open && streamError && breakpoints.length === 0 && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-950 border border-red-800 text-red-200 shadow-2xl text-sm"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007M4.5 19.5h15L12 4.5l-7.5 15z" />
+          </svg>
+          Breakpoint stream offline
         </button>
       )}
 
@@ -111,6 +124,12 @@ export function BreakpointsPanel() {
               </svg>
             </button>
           </div>
+
+          {streamError && (
+            <div className="mx-4 mt-4 rounded-md border border-red-900 bg-red-950/30 px-3 py-2 text-xs text-red-200">
+              {streamError}
+            </div>
+          )}
 
           {breakpoints.length === 0 ? (
             <p className="text-xs text-zinc-500 px-4 py-6 text-center">No paused breakpoints.</p>

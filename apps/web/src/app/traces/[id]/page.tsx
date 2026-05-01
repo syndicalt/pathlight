@@ -700,6 +700,8 @@ export default function TraceDetailPage() {
   const [spans, setSpans] = useState<Span[]>([]);
   const [events, setEvents] = useState<SpanEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [selectedSpan, setSelectedSpan] = useState<Span | null>(null);
   const [fixContext, setFixContext] = useState<FixContext | null>(null);
   const inspectorRef = useRef<HTMLDivElement | null>(null);
@@ -721,6 +723,9 @@ export default function TraceDetailPage() {
   }, [selectedSpan?.id]);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+    setReviewError(null);
     fetchApi<{ trace: Trace; spans: Span[]; events: SpanEvent[] }>(`/v1/traces/${id}`)
       .then((data) => {
         setTrace(data.trace);
@@ -730,17 +735,32 @@ export default function TraceDetailPage() {
         if (data.trace && !data.trace.reviewedAt) {
           const reviewedAt = new Date().toISOString();
           setTrace((prev) => (prev ? { ...prev, reviewedAt } : prev));
-          patchApi(`/v1/traces/${id}`, { reviewedAt }).catch(console.error);
+          patchApi(`/v1/traces/${id}`, { reviewedAt }).catch((err) => {
+            setReviewError(err instanceof Error ? err.message : String(err));
+            setTrace((prev) => (prev ? { ...prev, reviewedAt: null } : prev));
+          });
         }
       })
-      .catch(console.error)
+      .catch((err) => setLoadError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading || !trace) {
+  if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
         <p className="text-zinc-500">Loading trace...</p>
+      </div>
+    );
+  }
+
+  if (loadError || !trace) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-4">
+        <Link href="/" className="text-xs text-blue-400 hover:underline">← Back to traces</Link>
+        <div className="bg-red-950/30 border border-red-900 rounded-lg p-6">
+          <p className="text-sm font-medium text-red-200">Could not load trace</p>
+          <p className="text-xs text-red-300/80 mt-1">{loadError || "Trace not found"}</p>
+        </div>
       </div>
     );
   }
@@ -766,6 +786,12 @@ export default function TraceDetailPage() {
         <h1 className="text-xl font-bold">{trace.name}</h1>
         <span className="text-sm text-zinc-500">{trace.status}</span>
       </div>
+
+      {reviewError && (
+        <div className="rounded-lg border border-amber-800/70 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+          Trace loaded, but Pathlight could not mark it reviewed: {reviewError}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-4 gap-4">

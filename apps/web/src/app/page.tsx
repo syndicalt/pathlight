@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { fetchApi, COLLECTOR_URL } from "../lib/api";
+import { fetchApi, pathlightEventSourceUrl } from "../lib/api";
 import { formatDuration, formatTokens, formatTimestamp } from "../lib/format";
 
 interface Trace {
@@ -46,6 +46,8 @@ function TracesPageInner() {
   const [traces, setTraces] = useState<Trace[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -64,26 +66,30 @@ function TracesPageInner() {
   };
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
     fetchApi<{ traces: Trace[]; total: number }>("/v1/traces?limit=50")
       .then((data) => {
         setTraces(data.traces);
         setTotal(data.total);
       })
-      .catch(console.error)
+      .catch((err) => setLoadError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const source = new EventSource(`${COLLECTOR_URL}/v1/traces/stream`);
+    const source = new EventSource(pathlightEventSourceUrl("/v1/traces/stream"));
 
     const onCreated = (e: MessageEvent) => {
       const trace = JSON.parse(e.data) as Trace;
+      setStreamError(null);
       setTraces((prev) => (prev.some((t) => t.id === trace.id) ? prev : [trace, ...prev]));
       setTotal((prev) => prev + 1);
     };
 
     const onUpdated = (e: MessageEvent) => {
       const trace = JSON.parse(e.data) as Trace;
+      setStreamError(null);
       setTraces((prev) =>
         prev.map((t) =>
           t.id === trace.id
@@ -102,6 +108,9 @@ function TracesPageInner() {
 
     source.addEventListener("trace.created", onCreated);
     source.addEventListener("trace.updated", onUpdated);
+    source.onerror = () => {
+      setStreamError("Live trace stream disconnected. New traces may not appear until the collector reconnects.");
+    };
 
     return () => {
       source.removeEventListener("trace.created", onCreated);
@@ -149,8 +158,19 @@ function TracesPageInner() {
         )}
       </div>
 
+      {streamError && (
+        <div className="rounded-lg border border-amber-800/70 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+          {streamError}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-zinc-500 py-8">Loading traces...</p>
+      ) : loadError ? (
+        <div className="bg-red-950/30 border border-red-900 rounded-lg p-6">
+          <p className="text-sm font-medium text-red-200">Could not load traces</p>
+          <p className="text-xs text-red-300/80 mt-1">{loadError}</p>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
           <p className="text-zinc-400">No traces yet.</p>
