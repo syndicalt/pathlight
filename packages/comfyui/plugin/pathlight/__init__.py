@@ -99,7 +99,12 @@ def _patch_prompt_queue() -> None:
     if _PATCHED:
         return
 
-    queue = PromptServer.instance.prompt_queue
+    server = getattr(PromptServer, "instance", None)
+    queue = getattr(server, "prompt_queue", None)
+    if queue is None:
+        _LOGGER.warning("Pathlight ComfyUI auto-export deferred; prompt queue is not ready")
+        return
+
     original_task_done = queue.task_done
 
     def task_done_with_pathlight(item_id, history_result, status, process_item=None):
@@ -111,7 +116,7 @@ def _patch_prompt_queue() -> None:
             prompt_id = next(reversed(queue.history.keys()))
             asyncio.run_coroutine_threadsafe(
                 _export_prompt(prompt_id, trace_name=f"ComfyUI workflow {prompt_id}"),
-                PromptServer.instance.loop,
+                server.loop,
             )
         except Exception:
             _LOGGER.exception("Failed to schedule Pathlight ComfyUI export")
@@ -123,6 +128,7 @@ def _patch_prompt_queue() -> None:
 
 @PromptServer.instance.routes.get("/pathlight/comfyui/config")
 async def get_config(_request):
+    _patch_prompt_queue()
     return web.json_response(
         {
             "collectorUrl": _collector_url(),
@@ -135,11 +141,13 @@ async def get_config(_request):
 
 @PromptServer.instance.routes.get("/pathlight/comfyui/exports")
 async def get_exports(_request):
+    _patch_prompt_queue()
     return web.json_response(_EXPORTS)
 
 
 @PromptServer.instance.routes.post("/pathlight/comfyui/export/{prompt_id}")
 async def post_export(request):
+    _patch_prompt_queue()
     prompt_id = request.match_info["prompt_id"]
     body = await request.json() if request.can_read_body else {}
     trace_name = body.get("traceName") if isinstance(body, dict) else None
@@ -149,6 +157,7 @@ async def post_export(request):
 
 @PromptServer.instance.routes.get("/pathlight/comfyui/preview/{prompt_id}")
 async def get_preview(request):
+    _patch_prompt_queue()
     prompt_id = request.match_info["prompt_id"]
     history = _history_for_prompt(prompt_id)
     if not history:
