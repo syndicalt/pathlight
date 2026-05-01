@@ -60,12 +60,14 @@ extension can emit live node timing and artifacts as the workflow runs.
 
 ## ComfyUI plugin
 
-The `plugin/pathlight` directory is a ComfyUI custom node/server extension.
-Install it by copying or symlinking that directory into ComfyUI's
-`custom_nodes` directory:
+The plugin uses a single-file ComfyUI custom node loader plus a helper
+directory. Install it by copying both `plugin/pathlight_plugin.py` and
+`plugin/pathlight/` into ComfyUI's `custom_nodes` directory:
 
 ```bash
-ln -s ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight \
+cp ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight_plugin.py \
+  ~/Projects/Personal/ComfyUI/custom_nodes/pathlight_plugin.py
+cp -R ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight \
   ~/Projects/Personal/ComfyUI/custom_nodes/pathlight
 ```
 
