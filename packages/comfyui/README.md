@@ -55,8 +55,10 @@ const result = await exportComfyHistoryToPathlight(history, {
 console.log(result.traceId);
 ```
 
-This first bridge works from ComfyUI history. A future custom node or server
-extension can emit live node timing and artifacts as the workflow runs.
+The CLI works from ComfyUI history. The plugin below auto-exports completed
+workflow history and preserves the submitted prompt graph so Pathlight can
+render workflow nodes as timeline spans. A future plugin revision can emit
+live node timing and artifacts as the workflow runs.
 
 ## ComfyUI plugin
 
@@ -70,6 +72,7 @@ ComfyUI's `custom_nodes` directory:
 cp ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight_plugin.py \
   ~/Projects/Personal/ComfyUI/custom_nodes/pathlight_plugin.py
 rm -rf ~/Projects/Personal/ComfyUI/custom_nodes/pathlight
+rm -rf ~/Projects/Personal/ComfyUI/custom_nodes/pathlight_support.disabled
 cp -R ~/Projects/Personal/pathlight/packages/comfyui/plugin/pathlight_support.disabled \
   ~/Projects/Personal/ComfyUI/custom_nodes/pathlight_support.disabled
 ```

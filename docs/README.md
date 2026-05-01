@@ -32,8 +32,8 @@ start, see [../README.md](../README.md).
 ### Integrations
 - [OpenTelemetry interop](opentelemetry.md) — OTLP/HTTP ingest, gen_ai
   semantic conventions, attribute mapping
-- [ComfyUI tracing](roadmap.md#comfyui-tracing) — roadmap and first bridge
-  shape for exporting ComfyUI workflow history into Pathlight traces
+- [ComfyUI tracing](comfyui.md) — plugin and CLI exporter for ComfyUI
+  workflow traces
 - [OpenClaw plugin](openclaw-plugin.md) — first-party OpenClaw tracing
   plugin. Captures agent runs, LLM calls, tools, and sub-agent
   delegation with git provenance.

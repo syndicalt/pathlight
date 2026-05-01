@@ -8,7 +8,7 @@ plans when they have clear acceptance criteria.
 
 ### ComfyUI tracing
 
-Status: sprint 1 in progress.
+Status: shipped as an initial plugin and CLI bridge.
 
 Target Pathlight first, with Eventloom as a later companion for agent-driven
 creative workflows.
@@ -32,15 +32,16 @@ Product shape:
   artifacts, or linked file metadata.
 - Node failures and queue status map to span and trace status.
 
-Initial integration options:
+Implemented integration:
 
-- Build a `ComfyUI-Pathlight` custom node pack or server extension.
-- Add configuration for the Pathlight collector URL.
-- Start a trace when a workflow is queued or begins execution.
-- Emit spans around node execution.
-- Attach workflow JSON, prompt ids, model hashes, seeds, and output file
-  paths where available.
-- Link back to the Pathlight trace from ComfyUI history or logs.
+- `@pathlight/comfyui` can export saved or live ComfyUI history.
+- The ComfyUI plugin auto-exports completed workflows to the Pathlight
+  collector.
+- Each workflow maps to one trace; each workflow node maps to one span.
+- Node inputs, titles, outputs, prompt ids, queue status, and execution
+  errors are attached to trace/span input, output, and metadata.
+- The optional `Pathlight Status` node is a visible marker only; backend
+  auto-export does not require adding it to the graph.
 
 Eventloom fit:
 
@@ -49,14 +50,14 @@ than simply running a static graph. Eventloom can record why an agent chose
 a prompt, model, seed, rerun, branch, approval, or final output. Pathlight
 then shows what happened inside the ComfyUI graph.
 
-Recommended order:
+Recommended next order:
 
-1. Build Pathlight tracing for ComfyUI workflow/node execution.
-2. Validate with a local workflow and at least one custom-node failure.
-3. Add artifact and generated-output handling.
+1. Capture live ComfyUI execution events for real per-node timing.
+2. Add artifact and generated-output previews/links.
+3. Link back to the Pathlight trace from ComfyUI history or logs.
 4. Add Eventloom decision journaling for agent-driven ComfyUI automation.
 
-Sprint 1 acceptance criteria:
+Shipped acceptance criteria:
 
 - Provide a standalone bridge that can export ComfyUI `/history/{prompt_id}`
   output into Pathlight.
