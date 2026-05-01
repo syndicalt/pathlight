@@ -178,9 +178,22 @@ The collector exposes the engine over SSE so the dashboard (and any other client
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/v1/fix` | POST | Run the fix engine; response is `text/event-stream` with `progress`, `chunk`, `result`, `error`, `done` events |
-| `/v1/fix-apply` | POST | Write a diff to a local working tree via `git apply`. Body: `{ sourceDir, diff }`. Runs `git apply --check` first. Self-hosted trust model — gate behind an operator flag for any hosted deployment. |
+| `/v1/fix-apply` | POST | Write a diff to a local working tree via `git apply`. Body: `{ sourceDir, diff }`. Runs `git apply --check` first. Restrict writable roots with `PATHLIGHT_FIX_APPLY_ROOTS`. |
 
 The `/v1/fix` route resolves `keyId`/`tokenId` references (from [BYOK key storage](byok-keys.md)) internally and never accepts raw plaintext secrets from the wire.
+
+`/v1/fix-apply` is intentionally local-trust: it writes to the filesystem of
+the collector process. Leave `PATHLIGHT_FIX_APPLY_ROOTS` unset only for
+personal local development. For shared machines, Docker deployments, or any
+collector reachable from another browser, set it to a comma-separated list of
+approved workspace roots:
+
+```bash
+PATHLIGHT_FIX_APPLY_ROOTS=/home/me/projects,/workspaces
+```
+
+Requests whose `sourceDir` resolves outside those roots are rejected before
+Pathlight runs `git apply`.
 
 ## Troubleshooting
 

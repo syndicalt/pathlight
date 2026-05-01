@@ -8,12 +8,12 @@
  * with a user-supplied `sourceDir` as cwd and a user-supplied diff on stdin.
  * It does NOT evaluate any other command. Trust boundary is the self-hosted
  * collector == the dev tree; in a hosted deployment this route should be
- * disabled via an operator flag.
+ * restricted with PATHLIGHT_FIX_APPLY_ROOTS.
  */
 
 import { Hono } from "hono";
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 interface ApplyBody {
   sourceDir?: unknown;
@@ -40,6 +40,18 @@ export function createFixApplyRoutes() {
 
     const cwd = resolve(body.sourceDir);
     const diff = body.diff;
+    const allowedRoots = parseAllowedRoots();
+    if (allowedRoots.length > 0 && !isPathAllowed(cwd, allowedRoots)) {
+      return c.json(
+        {
+          error: {
+            message: "sourceDir is outside PATHLIGHT_FIX_APPLY_ROOTS",
+            type: "source_dir_not_allowed",
+          },
+        },
+        403,
+      );
+    }
 
     try {
       await runGitApply(["apply", "--check", "--whitespace=nowarn", "-"], cwd, diff);
@@ -75,6 +87,23 @@ export function createFixApplyRoutes() {
   });
 
   return app;
+}
+
+function parseAllowedRoots(value = process.env.PATHLIGHT_FIX_APPLY_ROOTS): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => resolve(item));
+}
+
+function isPathAllowed(candidate: string, roots: string[]): boolean {
+  const resolved = resolve(candidate);
+  return roots.some((root) => {
+    const rel = relative(root, resolved);
+    return rel === "" || (!!rel && !rel.startsWith("..") && !rel.startsWith("/") && !rel.match(/^[A-Za-z]:/));
+  });
 }
 
 function runGitApply(args: string[], cwd: string, stdin: string): Promise<void> {

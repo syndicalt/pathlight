@@ -400,7 +400,7 @@ pathlight/
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/v1/fix` | POST | Run `@pathlight/fix` against a failing trace. Response is `text/event-stream` with `progress` / `chunk` / `result` / `error` / `done` events. Resolves `keyId`/`tokenId` via the BYOK key store. See [docs/fix.md](docs/fix.md). |
-| `/v1/fix-apply` | POST | Write a unified diff to a local working tree via `git apply`. Body: `{ sourceDir, diff }`. Runs `git apply --check` first. |
+| `/v1/fix-apply` | POST | Write a unified diff to a local working tree via `git apply`. Body: `{ sourceDir, diff }`. Runs `git apply --check` first. Restrict writable roots with `PATHLIGHT_FIX_APPLY_ROOTS`. |
 
 ### BYOK key storage
 
@@ -537,6 +537,7 @@ individual amber-highlighted rows in the waterfall.
 | `OPENAI_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is OpenAI-compatible |
 | `ANTHROPIC_API_KEY` | — | Fallback key when `REPLAY_API_KEY` isn't set and provider is Anthropic |
 | `PATHLIGHT_SEAL_KEY` | — | 32-byte base64 master key for the BYOK encrypted key store. When set, the collector mounts `/v1/projects/:id/keys`. Fail-stops on malformed input. |
+| `PATHLIGHT_FIX_APPLY_ROOTS` | — | Optional comma-separated allowlist of directories where `/v1/fix-apply` may run `git apply`. Unset preserves local-dev behavior; set it before exposing the collector. |
 | `PATHLIGHT_LLM_API_KEY` | — | BYOK LLM key consumed by `pathlight fix`. Required for the CLI. |
 | `PATHLIGHT_GIT_TOKEN` | — | Read-only git token consumed by `pathlight fix --git-url`. Never logged. |
 
@@ -598,6 +599,11 @@ pass the same value to SDKs or the dashboard build. API keys (for replay and
 BYOK fix) read from env vars, browser session state, or the encrypted
 libsodium-backed key store — never sent to any third-party beyond the LLM
 provider itself.
+
+`/v1/fix-apply` writes patches on the collector host. For personal local
+development this is intentional; for shared or exposed collectors, set
+`PATHLIGHT_FIX_APPLY_ROOTS=/path/to/workspaces,/another/root` so patches can
+only apply inside approved working-tree roots.
 
 **BYOK is a hard line.** The code-fixing agent, LLM replay, and OpenClaw
 plugin all use the user's own keys. Pathlight never acts as an inference
