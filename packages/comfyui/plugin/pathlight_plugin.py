@@ -117,12 +117,18 @@ def _patch_prompt_queue() -> None:
     original_task_done = queue.task_done
 
     def task_done_with_pathlight(item_id, history_result, status, process_item=None):
+        running_item = queue.currently_running.get(item_id)
+        prompt_id = str(running_item[1]) if isinstance(running_item, (list, tuple)) and len(running_item) > 1 else None
+        prompt_graph = running_item[2] if isinstance(running_item, (list, tuple)) and len(running_item) > 2 else None
+
         original_task_done(item_id, history_result, status, process_item)
         if not _auto_export_enabled():
             return
 
         try:
-            prompt_id = next(reversed(queue.history.keys()))
+            prompt_id = prompt_id or next(reversed(queue.history.keys()))
+            if isinstance(prompt_graph, dict) and prompt_id in queue.history:
+                queue.history[prompt_id]["_pathlight_prompt_graph"] = prompt_graph
             asyncio.run_coroutine_threadsafe(
                 _export_prompt(prompt_id, trace_name=f"ComfyUI workflow {prompt_id}"),
                 server.loop,

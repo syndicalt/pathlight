@@ -73,6 +73,25 @@ class ExporterTests(unittest.TestCase):
         self.assertEqual(plan["spans"][0]["status"], "failed")
         self.assertEqual(plan["spans"][1]["status"], "completed")
 
+    def test_uses_plugin_prompt_graph_fallback_when_history_prompt_is_sparse(self):
+        plan = build_trace_plan(
+            {
+                "prompt-3": {
+                    "prompt": [1, "prompt-3", {}, {}, ["2"]],
+                    "_pathlight_prompt_graph": {
+                        "1": {"class_type": "CLIPTextEncode", "inputs": {"text": "hello"}},
+                        "2": {"class_type": "SaveImage", "inputs": {"images": ["1", 0]}},
+                    },
+                    "outputs": {"2": {"images": [{"filename": "out.png"}]}},
+                    "status": {"status_str": "success", "completed": True, "messages": []},
+                }
+            }
+        )
+
+        self.assertEqual(plan["trace"]["metadata"]["nodeCount"], 2)
+        self.assertEqual(plan["spans"][0]["name"], "comfy.node.CLIPTextEncode")
+        self.assertEqual(plan["spans"][1]["metadata"]["outputNode"], True)
+
 
 if __name__ == "__main__":
     unittest.main()

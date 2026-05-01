@@ -18,6 +18,8 @@ class ExportResult:
 def build_trace_plan(history_envelope: dict[str, Any], trace_name: str | None = None) -> dict[str, Any]:
     prompt_id, history = _unwrap_history(history_envelope)
     nodes = _extract_nodes(history.get("prompt"))
+    if not nodes:
+        nodes = _extract_nodes(history.get("_pathlight_prompt_graph"))
     outputs = history.get("outputs") or {}
     failures = _extract_failures(((history.get("status") or {}).get("messages")) or [])
     failures_by_node: dict[str, list[dict[str, Any]]] = {}
